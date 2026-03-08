@@ -82,3 +82,5 @@ docker-data/
 playwright-report/
 test-results/
 *.lcov
+
+pocketbase
