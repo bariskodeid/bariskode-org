@@ -1,0 +1,490 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import type { Lesson, Module, Course } from "../../types/index";
+import { marked } from "marked";
+import DOMPurify from "isomorphic-dompurify";
+
+const { lessonId } = Astro.params;
+const { pb, user } = Astro.locals;
+
+if (!user) {
+    return Astro.redirect(
+        `/login?redirect=${encodeURIComponent(Astro.url.pathname)}`,
+    );
+}
+
+// Fetch current lesson
+let lesson: Lesson | null = null;
+try {
+    lesson = await pb.collection("lessons").getOne<Lesson>(lessonId as string);
+} catch {
+    return Astro.redirect("/404");
+}
+if (!lesson) return Astro.redirect("/404");
+
+// Fetch module this lesson belongs to
+let currentModule: (Module & { course?: string }) | null = null;
+try {
+    currentModule = await pb
+        .collection("modules")
+        .getFirstListItem<
+            Module & { course?: string }
+        >(`id = '${(lesson as any).module}'`);
+} catch {}
+
+// Fetch the course
+let course: Course | null = null;
+if (currentModule?.course) {
+    try {
+        course = await pb
+            .collection("courses")
+            .getOne<Course>(currentModule.course);
+    } catch {}
+}
+
+// Fetch ALL modules and lessons for sidebar navigation
+let allModules: (Module & {
+    course?: string;
+    expand?: { lessons_via_module: Lesson[] };
+})[] = [];
+if (course) {
+    try {
+        allModules = await pb
+            .collection("modules")
+            .getFullList<
+                Module & {
+                    course?: string;
+                    expand?: { lessons_via_module: Lesson[] };
+                }
+            >({
+                filter: `course = '${course.id}'`,
+                sort: "order",
+                expand: "lessons_via_module",
+            });
+    } catch {}
+}
+
+// Flatten all lessons in order for prev/next navigation
+const orderedLessons = allModules.flatMap((m) =>
+    (m.expand?.lessons_via_module ?? [])
+        .filter((l: Lesson) => l.status === "published")
+        .sort((a: Lesson, b: Lesson) => a.order - b.order),
+);
+
+const currentIndex = orderedLessons.findIndex((l) => l.id === lessonId);
+const prevLesson = currentIndex > 0 ? orderedLessons[currentIndex - 1] : null;
+const nextLesson =
+    currentIndex < orderedLessons.length - 1
+        ? orderedLessons[currentIndex + 1]
+        : null;
+
+// Get user progress for sidebar icons
+let progressMap: Record<string, string> = {};
+if (orderedLessons.length > 0) {
+    try {
+        const ids = orderedLessons.map((l) => `'${l.id}'`).join(",");
+        const records = await pb.collection("user_progress").getFullList({
+            filter: `user = '${user.id}' && lesson IN (${ids})`,
+        });
+        progressMap = Object.fromEntries(
+            records.map((r: any) => [r.lesson, r.status]),
+        );
+    } catch {}
+}
+
+// Check if current lesson is completed
+const isCompleted = progressMap[lessonId as string] === "completed";
+
+// Render markdown content
+let htmlContent = "";
+if (lesson.type === "reading" && lesson.content) {
+    const rawHtml = await marked(lesson.content);
+    htmlContent = DOMPurify.sanitize(rawHtml);
+}
+
+const typeLabel: Record<string, string> = {
+    reading: "📖 Bacaan",
+    video: "🎬 Video",
+    quiz: "❓ Quiz",
+    coding: "💻 Coding",
+};
+---
+
+<BaseLayout
+    title={`${lesson.title} — Bariskode`}
+    description={`Pelajari ${lesson.title}`}
+>
+    <div class="flex min-h-[calc(100vh-4rem)]">
+        <!-- Sidebar -->
+        <aside
+            class="hidden lg:block w-80 shrink-0 border-r border-[var(--color-border)] overflow-y-auto"
+            style="background-color: var(--color-surface);"
+        >
+            <div class="p-5">
+                <!-- Course Title -->
+                {
+                    course && (
+                        <a
+                            href={`/courses/${course.slug}`}
+                            class="flex items-center gap-2 text-sm text-[var(--color-muted)] hover:text-[var(--color-primary)] transition-colors mb-5"
+                        >
+                            <svg
+                                class="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M15 19l-7-7 7-7"
+                                />
+                            </svg>
+                            <span class="truncate">{course.title}</span>
+                        </a>
+                    )
+                }
+
+                <!-- Modules & Lessons -->
+                <nav class="space-y-4">
+                    {
+                        allModules.map((mod, modIndex) => {
+                            const lessons = (
+                                mod.expand?.lessons_via_module ?? []
+                            )
+                                .filter((l: Lesson) => l.status === "published")
+                                .sort(
+                                    (a: Lesson, b: Lesson) => a.order - b.order,
+                                );
+                            return (
+                                <div>
+                                    <h3 class="text-[11px] font-mono font-bold uppercase tracking-widest text-[var(--color-muted)] mb-2 px-1">
+                                        M{modIndex + 1} · {mod.title}
+                                    </h3>
+                                    <div class="space-y-0.5">
+                                        {lessons.map((l: Lesson) => {
+                                            const isCurrent = l.id === lessonId;
+                                            const status = progressMap[l.id];
+                                            return (
+                                                <a
+                                                    href={`/learn/${l.id}`}
+                                                    class:list={[
+                                                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all",
+                                                        isCurrent
+                                                            ? "text-[var(--color-primary)] font-medium"
+                                                            : "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]",
+                                                    ]}
+                                                    style={
+                                                        isCurrent
+                                                            ? "background-color: var(--color-primary-glow);"
+                                                            : ""
+                                                    }
+                                                >
+                                                    <span
+                                                        class="flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-mono shrink-0"
+                                                        style={
+                                                            status ===
+                                                            "completed"
+                                                                ? "background-color: var(--color-primary); color: var(--color-bg);"
+                                                                : isCurrent
+                                                                  ? "border: 2px solid var(--color-primary); color: var(--color-primary);"
+                                                                  : "border: 1px solid var(--color-border); color: var(--color-muted);"
+                                                        }
+                                                    >
+                                                        {status === "completed"
+                                                            ? "✓"
+                                                            : isCurrent
+                                                              ? "►"
+                                                              : "○"}
+                                                    </span>
+                                                    <span class="truncate">
+                                                        {l.title}
+                                                    </span>
+                                                </a>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    }
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto">
+            <div class="max-w-3xl mx-auto px-6 sm:px-8 py-8">
+                <!-- Breadcrumb -->
+                <nav class="mb-6 text-xs text-[var(--color-muted)]">
+                    <ol class="flex items-center gap-1.5 flex-wrap">
+                        {
+                            course && (
+                                <li>
+                                    <a
+                                        href={`/courses/${course.slug}`}
+                                        class="hover:text-[var(--color-primary)] transition-colors"
+                                    >
+                                        {course.title}
+                                    </a>
+                                </li>
+                            )
+                        }
+                        {course && <li>/</li>}
+                        {
+                            currentModule && (
+                                <li class="text-[var(--color-text-secondary)]">
+                                    {currentModule.title}
+                                </li>
+                            )
+                        }
+                    </ol>
+                </nav>
+
+                <!-- Lesson Header -->
+                <div class="mb-8">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span
+                            class="text-xs font-mono px-2 py-0.5 rounded-md border border-[var(--color-border)]"
+                            style="background-color: var(--color-surface-alt); color: var(--color-muted);"
+                        >
+                            {typeLabel[lesson.type] ?? lesson.type}
+                        </span>
+                        {
+                            lesson.xp_reward > 0 && (
+                                <span class="text-xs font-mono text-[var(--color-primary)]">
+                                    +{lesson.xp_reward} XP
+                                </span>
+                            )
+                        }
+                        {
+                            lesson.estimated_minutes && (
+                                <span class="text-xs text-[var(--color-muted)]">
+                                    ~{lesson.estimated_minutes} menit
+                                </span>
+                            )
+                        }
+                    </div>
+                    <h1
+                        class="text-2xl sm:text-3xl font-bold text-[var(--color-text)]"
+                    >
+                        {lesson.title}
+                    </h1>
+                </div>
+
+                <!-- Lesson Content -->
+                {
+                    lesson.type === "reading" && htmlContent && (
+                        <article class="prose" set:html={htmlContent} />
+                    )
+                }
+
+                {
+                    lesson.type === "video" && lesson.video_url && (
+                        <div class="aspect-video rounded-xl overflow-hidden border border-[var(--color-border)] mb-8">
+                            <iframe
+                                src={lesson.video_url}
+                                class="w-full h-full"
+                                allowfullscreen
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                title={lesson.title}
+                            />
+                        </div>
+                    )
+                }
+
+                {
+                    lesson.type === "quiz" && (
+                        <div
+                            class="rounded-xl border border-[var(--color-border)] p-8 text-center"
+                            style="background-color: var(--color-surface);"
+                        >
+                            <div class="text-4xl mb-4">❓</div>
+                            <h3 class="text-lg font-bold text-[var(--color-text)] mb-2">
+                                Quiz Time!
+                            </h3>
+                            <p class="text-sm text-[var(--color-muted)] mb-6">
+                                Uji pemahamanmu dengan menjawab pertanyaan di
+                                bawah.
+                            </p>
+                            <a
+                                href={`/quiz/${lesson.id}`}
+                                class="inline-flex items-center h-11 px-6 rounded-xl text-sm font-bold transition-all hover:brightness-110"
+                                style="background-color: var(--color-primary); color: var(--color-bg);"
+                            >
+                                Mulai Quiz
+                            </a>
+                        </div>
+                    )
+                }
+
+                {
+                    lesson.type === "coding" && (
+                        <div
+                            class="rounded-xl border border-[var(--color-border)] p-8 text-center"
+                            style="background-color: var(--color-surface);"
+                        >
+                            <div class="text-4xl mb-4">💻</div>
+                            <h3 class="text-lg font-bold text-[var(--color-text)] mb-2">
+                                Coding Challenge
+                            </h3>
+                            <p class="text-sm text-[var(--color-muted)]">
+                                Fitur code editor akan tersedia di Phase 2.
+                            </p>
+                        </div>
+                    )
+                }
+
+                <!-- Mark Complete + Navigation -->
+                <div class="mt-12 pt-8 border-t border-[var(--color-border)]">
+                    <!-- Mark Complete Button -->
+                    {
+                        (lesson.type === "reading" ||
+                            lesson.type === "video") && (
+                            <div class="mb-8">
+                                {isCompleted ? (
+                                    <div
+                                        class="flex items-center gap-3 px-5 py-3 rounded-xl border border-[var(--color-primary)]/30"
+                                        style="background-color: var(--color-primary-glow);"
+                                    >
+                                        <span
+                                            class="flex items-center justify-center w-6 h-6 rounded-full text-xs"
+                                            style="background-color: var(--color-primary); color: var(--color-bg);"
+                                        >
+                                            ✓
+                                        </span>
+                                        <span class="text-sm font-medium text-[var(--color-primary)]">
+                                            Lesson selesai! +{lesson.xp_reward}{" "}
+                                            XP
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <form
+                                        method="POST"
+                                        action="/api/progress/complete"
+                                    >
+                                        <input
+                                            type="hidden"
+                                            name="lessonId"
+                                            value={lesson.id}
+                                        />
+                                        <input
+                                            type="hidden"
+                                            name="redirect"
+                                            value={Astro.url.pathname}
+                                        />
+                                        <button
+                                            type="submit"
+                                            class="flex items-center justify-center gap-2 w-full h-12 rounded-xl text-sm font-bold transition-all hover:brightness-110"
+                                            style="background-color: var(--color-primary); color: var(--color-bg);"
+                                        >
+                                            <svg
+                                                class="w-5 h-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                />
+                                            </svg>
+                                            Tandai Selesai
+                                        </button>
+                                    </form>
+                                )}
+                            </div>
+                        )
+                    }
+
+                    <!-- Prev / Next Navigation -->
+                    <div class="flex items-center justify-between gap-4">
+                        {
+                            prevLesson ? (
+                                <a
+                                    href={`/learn/${prevLesson.id}`}
+                                    class="flex items-center gap-2 h-11 px-5 rounded-xl border border-[var(--color-border)] text-sm font-medium text-[var(--color-muted)] hover:border-[var(--color-primary)]/50 transition-all"
+                                    style="background-color: var(--color-surface);"
+                                >
+                                    <svg
+                                        class="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M15 19l-7-7 7-7"
+                                        />
+                                    </svg>
+                                    <span class="hidden sm:inline truncate max-w-[180px]">
+                                        {prevLesson.title}
+                                    </span>
+                                    <span class="sm:hidden">Sebelumnya</span>
+                                </a>
+                            ) : (
+                                <div />
+                            )
+                        }
+
+                        {
+                            nextLesson ? (
+                                <a
+                                    href={`/learn/${nextLesson.id}`}
+                                    class="flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-bold transition-all hover:brightness-110"
+                                    style="background-color: var(--color-primary); color: var(--color-bg);"
+                                >
+                                    <span class="hidden sm:inline truncate max-w-[180px]">
+                                        {nextLesson.title}
+                                    </span>
+                                    <span class="sm:hidden">Selanjutnya</span>
+                                    <svg
+                                        class="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M9 5l7 7-7 7"
+                                        />
+                                    </svg>
+                                </a>
+                            ) : course ? (
+                                <a
+                                    href={`/courses/${course.slug}`}
+                                    class="flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-bold transition-all hover:brightness-110"
+                                    style="background-color: var(--color-primary); color: var(--color-bg);"
+                                >
+                                    Kembali ke Kursus
+                                    <svg
+                                        class="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M9 5l7 7-7 7"
+                                        />
+                                    </svg>
+                                </a>
+                            ) : (
+                                <div />
+                            )
+                        }
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</BaseLayout>

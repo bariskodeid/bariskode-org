@@ -1,0 +1,40 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+    title="403 — Akses Ditolak"
+    description="Kamu tidak memiliki izin untuk mengakses halaman ini."
+>
+    <section class="min-h-[70vh] flex items-center justify-center px-4">
+        <div class="text-center">
+            <div
+                class="text-8xl font-bold font-mono text-[var(--color-danger)] mb-4 animate-pulse-glow"
+                style="box-shadow: none;"
+            >
+                403
+            </div>
+            <h1 class="text-2xl font-bold text-[var(--color-text)] mb-2">
+                Akses Ditolak
+            </h1>
+            <p class="text-[var(--color-muted)] mb-6 max-w-md">
+                Kamu tidak memiliki izin untuk mengakses halaman ini. Hubungi
+                admin jika kamu yakin ini adalah kesalahan.
+            </p>
+            <div class="flex items-center justify-center gap-3">
+                <a
+                    href="/"
+                    class="px-4 py-2 text-sm font-medium text-[var(--color-bg)] bg-[var(--color-primary)] rounded-lg hover:bg-[var(--color-primary-dim)] transition-all"
+                >
+                    Ke Beranda
+                </a>
+                <a
+                    href="/dashboard"
+                    class="px-4 py-2 text-sm font-medium text-[var(--color-text)] border border-[var(--color-border)] rounded-lg hover:border-[var(--color-primary)] transition-all"
+                >
+                    Dashboard
+                </a>
+            </div>
+        </div>
+    </section>
+</BaseLayout>

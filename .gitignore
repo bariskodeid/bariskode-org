@@ -83,4 +83,3 @@ playwright-report/
 test-results/
 *.lcov
 
-pocketbase

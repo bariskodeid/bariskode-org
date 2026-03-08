@@ -1,0 +1,245 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+const user = Astro.locals.user;
+if (!user) {
+    return Astro.redirect("/login");
+}
+
+// Fetch user's enrolled courses with progress
+const pb = Astro.locals.pb;
+let enrolledCourses: any[] = [];
+let completedLessons = 0;
+let totalXP = user.xp ?? 0;
+
+try {
+    // Get unique courses the user has progress in
+    const progress = await pb.collection("user_progress").getFullList({
+        filter: `user = "${user.id}"`,
+        sort: "-created",
+    });
+
+    completedLessons = progress.filter(
+        (p: any) => p.status === "completed",
+    ).length;
+
+    // Get unique course IDs from progress (via lesson → module → course)
+    const lessonIds = [...new Set(progress.map((p: any) => p.lesson))];
+
+    if (lessonIds.length > 0) {
+        const lessons = await pb.collection("lessons").getFullList({
+            filter: lessonIds.map((id: string) => `id = "${id}"`).join(" || "),
+            fields: "id,module",
+        });
+
+        const moduleIds = [...new Set(lessons.map((l: any) => l.module))];
+
+        if (moduleIds.length > 0) {
+            const modules = await pb.collection("modules").getFullList({
+                filter: moduleIds
+                    .map((id: string) => `id = "${id}"`)
+                    .join(" || "),
+                fields: "id,course",
+            });
+
+            const courseIds = [...new Set(modules.map((m: any) => m.course))];
+
+            if (courseIds.length > 0) {
+                enrolledCourses = await pb.collection("courses").getFullList({
+                    filter: courseIds
+                        .map((id: string) => `id = "${id}"`)
+                        .join(" || "),
+                    expand: "category",
+                });
+            }
+        }
+    }
+} catch (e) {
+    console.error("Dashboard data fetch error:", e);
+}
+
+// Level calculation
+const currentLevel = user.level ?? 1;
+const xpForNextLevel = currentLevel * 1000;
+const xpProgress = Math.min((totalXP / xpForNextLevel) * 100, 100);
+---
+
+<BaseLayout title="Dashboard — Bariskode">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+        <!-- Welcome Header -->
+        <div
+            class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8"
+        >
+            <div>
+                <h1
+                    class="text-2xl sm:text-3xl font-bold text-[var(--color-text)]"
+                >
+                    Halo, <span class="text-[var(--color-primary)] font-mono"
+                        >{user.username}</span
+                    >! 👋
+                </h1>
+                <p class="text-[var(--color-muted)] text-sm mt-1">
+                    Selamat datang kembali. Lanjutkan perjalanan belajarmu.
+                </p>
+            </div>
+            <div class="flex items-center gap-3">
+                <a
+                    href="/courses"
+                    class="inline-flex items-center px-4 py-2 text-sm font-medium text-[var(--color-bg)] bg-[var(--color-primary)] rounded-lg hover:bg-[var(--color-primary-dim)] transition-all"
+                >
+                    Jelajahi Kursus
+                </a>
+                <form method="POST" action="/api/auth/logout">
+                    <button
+                        type="submit"
+                        class="px-4 py-2 text-sm font-medium text-[var(--color-muted)] border border-[var(--color-border)] rounded-lg hover:border-[var(--color-danger)] hover:text-[var(--color-danger)] transition-all"
+                    >
+                        Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <!-- Level -->
+            <div
+                class="p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+            >
+                <div
+                    class="text-xs text-[var(--color-muted)] font-mono uppercase tracking-wider mb-1"
+                >
+                    Level
+                </div>
+                <div
+                    class="text-3xl font-bold text-[var(--color-accent)] font-mono"
+                >
+                    {currentLevel}
+                </div>
+                <div
+                    class="mt-2 w-full bg-[var(--color-bg)] rounded-full h-1.5"
+                >
+                    <div
+                        class="h-1.5 rounded-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-primary)]"
+                        style={`width: ${xpProgress}%`}
+                    >
+                    </div>
+                </div>
+            </div>
+
+            <!-- XP -->
+            <div
+                class="p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+            >
+                <div
+                    class="text-xs text-[var(--color-muted)] font-mono uppercase tracking-wider mb-1"
+                >
+                    Total XP
+                </div>
+                <div
+                    class="text-3xl font-bold text-[var(--color-primary)] font-mono"
+                >
+                    {totalXP.toLocaleString()}
+                </div>
+                <div class="text-xs text-[var(--color-muted)] mt-2">
+                    {xpForNextLevel - totalXP} XP to next level
+                </div>
+            </div>
+
+            <!-- Streak -->
+            <div
+                class="p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+            >
+                <div
+                    class="text-xs text-[var(--color-muted)] font-mono uppercase tracking-wider mb-1"
+                >
+                    Streak 🔥
+                </div>
+                <div
+                    class="text-3xl font-bold text-[var(--color-warning)] font-mono"
+                >
+                    {user.streak_current ?? 0}
+                </div>
+                <div class="text-xs text-[var(--color-muted)] mt-2">
+                    Longest: {user.streak_longest ?? 0} days
+                </div>
+            </div>
+
+            <!-- Lessons Complete -->
+            <div
+                class="p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+            >
+                <div
+                    class="text-xs text-[var(--color-muted)] font-mono uppercase tracking-wider mb-1"
+                >
+                    Lessons ✓
+                </div>
+                <div
+                    class="text-3xl font-bold text-[var(--color-primary)] font-mono"
+                >
+                    {completedLessons}
+                </div>
+                <div class="text-xs text-[var(--color-muted)] mt-2">
+                    Lessons completed
+                </div>
+            </div>
+        </div>
+
+        <!-- Enrolled Courses -->
+        <section>
+            <h2 class="text-xl font-bold text-[var(--color-text)] mb-4">
+                Kursus Aktif
+            </h2>
+
+            {
+                enrolledCourses.length === 0 ? (
+                    <div class="p-8 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] text-center">
+                        <p class="text-4xl mb-3">📚</p>
+                        <p class="text-[var(--color-text-secondary)] font-medium">
+                            Belum ada kursus yang diikuti
+                        </p>
+                        <p class="text-sm text-[var(--color-muted)] mt-1">
+                            Mulai belajar dengan mengikuti kursus di katalog.
+                        </p>
+                        <a
+                            href="/courses"
+                            class="inline-flex items-center mt-4 px-4 py-2 text-sm font-medium text-[var(--color-bg)] bg-[var(--color-primary)] rounded-lg hover:bg-[var(--color-primary-dim)] transition-all"
+                        >
+                            Lihat Kursus
+                        </a>
+                    </div>
+                ) : (
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {enrolledCourses.map((course: any) => (
+                            <a
+                                href={`/courses/${course.slug}`}
+                                class="group block p-5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] transition-all hover:-translate-y-0.5"
+                            >
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="text-lg">
+                                        {course.expand?.category?.icon ?? "📖"}
+                                    </span>
+                                    <span class="text-xs text-[var(--color-muted)] font-mono">
+                                        {course.expand?.category?.name ??
+                                            "Course"}
+                                    </span>
+                                </div>
+                                <h3 class="text-base font-semibold text-[var(--color-text)] group-hover:text-[var(--color-primary)] transition-colors">
+                                    {course.title}
+                                </h3>
+                                <div class="flex items-center gap-3 mt-3 text-xs text-[var(--color-muted)]">
+                                    <span class="px-2 py-0.5 rounded-full border border-[var(--color-border)] capitalize">
+                                        {course.difficulty}
+                                    </span>
+                                    <span>
+                                        {course.total_lessons ?? 0} lessons
+                                    </span>
+                                </div>
+                            </a>
+                        ))}
+                    </div>
+                )
+            }
+        </section>
+    </div>
+</BaseLayout>
