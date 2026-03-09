@@ -1,11 +1,15 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { normalizeInternalRedirect } from "../lib/validation";
 
 if (Astro.locals.user) {
     return Astro.redirect("/dashboard");
 }
 
-const redirectTo = Astro.url.searchParams.get("redirect") ?? "/dashboard";
+const redirectTo = normalizeInternalRedirect(
+    Astro.url.searchParams.get("redirect"),
+    "/dashboard",
+);
 let error = "";
 
 if (Astro.request.method === "POST") {
@@ -19,6 +23,18 @@ if (Astro.request.method === "POST") {
         } else {
             const pb = Astro.locals.pb;
             await pb.collection("users").authWithPassword(email, password);
+
+            const isVerified = Boolean((pb.authStore.record as { verified?: boolean } | null)?.verified);
+            if (!isVerified) {
+                pb.authStore.clear();
+                try {
+                    await pb.collection("users").requestVerification(email);
+                } catch {
+                    // Best effort.
+                }
+                return Astro.redirect(`/verify-email?email=${encodeURIComponent(email)}`);
+            }
+
             return Astro.redirect(redirectTo);
         }
     } catch (e: any) {

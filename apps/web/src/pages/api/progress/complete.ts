@@ -1,4 +1,6 @@
 import type { APIRoute } from 'astro';
+import { ensureCertificateForCourse, getCourseIdByLessonId } from '../../../lib/certificateService';
+import { isValidPocketBaseId } from '../../../lib/validation';
 
 export const POST: APIRoute = async ({ locals, request }) => {
     if (!locals.user) {
@@ -25,6 +27,13 @@ export const POST: APIRoute = async ({ locals, request }) => {
 
         if (!lessonId) {
             return new Response(JSON.stringify({ error: 'lessonId is required' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        if (!isValidPocketBaseId(lessonId)) {
+            return new Response(JSON.stringify({ error: 'Invalid lessonId' }), {
                 status: 400,
                 headers: { 'Content-Type': 'application/json' },
             });
@@ -69,6 +78,21 @@ export const POST: APIRoute = async ({ locals, request }) => {
             });
         }
 
+        let certificate: { certId: string | null; created: boolean } | null = null;
+        const origin = new URL(request.url).origin;
+        const courseId = await getCourseIdByLessonId(pb, lessonId);
+        if (courseId) {
+            const certResult = await ensureCertificateForCourse(
+                pb,
+                { id: userId, email: locals.user.email, username: locals.user.username },
+                courseId,
+                origin
+            );
+            if (certResult.completed && certResult.certId) {
+                certificate = { certId: certResult.certId, created: certResult.created };
+            }
+        }
+
         // If form submission, redirect back
         if (redirectUrl) {
             return new Response(null, {
@@ -77,12 +101,12 @@ export const POST: APIRoute = async ({ locals, request }) => {
             });
         }
 
-        return new Response(JSON.stringify({ success: true, xpGained: xpGain }), {
+        return new Response(JSON.stringify({ success: true, xpGained: xpGain, certificate }), {
             headers: { 'Content-Type': 'application/json' },
         });
     } catch (err: any) {
         return new Response(
-            JSON.stringify({ error: err?.message ?? 'Failed to mark complete' }),
+            JSON.stringify({ error: 'Failed to mark complete' }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
     }

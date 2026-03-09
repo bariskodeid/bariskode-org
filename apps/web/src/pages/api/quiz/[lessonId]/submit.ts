@@ -1,4 +1,6 @@
 import type { APIRoute } from 'astro';
+import { ensureCertificateForCourse, getCourseIdByLessonId } from '../../../../lib/certificateService';
+import { isValidPocketBaseId } from '../../../../lib/validation';
 
 export const POST: APIRoute = async ({ params, locals, request }) => {
     if (!locals.user) {
@@ -9,6 +11,13 @@ export const POST: APIRoute = async ({ params, locals, request }) => {
     }
 
     try {
+        if (!isValidPocketBaseId(params.lessonId)) {
+            return new Response(JSON.stringify({ error: 'Invalid lessonId' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
         const { answers } = await request.json(); // array of selected option indices
 
         // Fetch FULL questions with is_correct — only server sees this
@@ -80,12 +89,29 @@ export const POST: APIRoute = async ({ params, locals, request }) => {
             await locals.pb.collection('users').update(userId, { 'xp+': xpReward });
         }
 
-        return new Response(JSON.stringify({ score, passed, results, attempts }), {
+        let certificate: { certId: string | null; created: boolean } | null = null;
+        if (passed) {
+            const origin = new URL(request.url).origin;
+            const courseId = await getCourseIdByLessonId(locals.pb, params.lessonId!);
+            if (courseId) {
+                const certResult = await ensureCertificateForCourse(
+                    locals.pb,
+                    { id: userId, email: locals.user.email, username: locals.user.username },
+                    courseId,
+                    origin
+                );
+                if (certResult.completed && certResult.certId) {
+                    certificate = { certId: certResult.certId, created: certResult.created };
+                }
+            }
+        }
+
+        return new Response(JSON.stringify({ score, passed, results, attempts, certificate }), {
             headers: { 'Content-Type': 'application/json' },
         });
     } catch (err: any) {
         return new Response(
-            JSON.stringify({ error: err?.message ?? 'Failed to submit quiz' }),
+            JSON.stringify({ error: 'Failed to submit quiz' }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
     }

@@ -41,7 +41,22 @@ if (Astro.request.method === "POST") {
                 streak_current: 0,
                 streak_longest: 0,
             });
+
+            // Send email verification (best effort).
+            try {
+                await pb.collection("users").requestVerification(email);
+            } catch {
+                // Ignore to avoid blocking registration.
+            }
+
             await pb.collection("users").authWithPassword(email, password);
+
+            const isVerified = Boolean((pb.authStore.record as { verified?: boolean } | null)?.verified);
+            if (!isVerified) {
+                pb.authStore.clear();
+                return Astro.redirect(`/verify-email?email=${encodeURIComponent(email)}`);
+            }
+
             return Astro.redirect("/dashboard");
         }
     } catch (e: any) {

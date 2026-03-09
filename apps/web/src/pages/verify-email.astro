@@ -1,0 +1,61 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const email = Astro.url.searchParams.get("email") ?? "";
+let info = "";
+let error = "";
+
+if (Astro.request.method === "POST") {
+    try {
+        const formData = await Astro.request.formData();
+        const targetEmail = formData.get("email")?.toString().trim() ?? "";
+
+        if (!targetEmail) {
+            error = "Email wajib diisi.";
+        } else {
+            await Astro.locals.pb.collection("users").requestVerification(targetEmail);
+            info = "Link verifikasi baru sudah dikirim. Cek inbox atau folder spam.";
+        }
+    } catch {
+        info = "Jika email terdaftar, link verifikasi sudah dikirim.";
+    }
+}
+---
+
+<BaseLayout
+    title="Verifikasi Email — Bariskode"
+    description="Verifikasi email akun Bariskode kamu."
+>
+    <section class="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
+        <div class="w-full max-w-[460px] rounded-2xl border border-[var(--color-border)] p-8" style="background-color: var(--color-surface);">
+            <h1 class="text-2xl font-bold text-[var(--color-text)] mb-2">Verifikasi Email</h1>
+            <p class="text-sm text-[var(--color-muted)] mb-6">
+                Kami sudah mengirim email verifikasi{email ? ` ke ${email}` : ""}. Setelah klik link verifikasi,
+                silakan login kembali.
+            </p>
+
+            {error && <p class="mb-4 text-sm text-red-400">{error}</p>}
+            {info && <p class="mb-4 text-sm text-[var(--color-primary)]">{info}</p>}
+
+            <form method="POST" class="flex gap-3 mb-5">
+                <input
+                    type="email"
+                    name="email"
+                    value={email}
+                    required
+                    placeholder="kamu@email.com"
+                    class="flex-1 h-11 px-3 rounded-xl bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] text-sm"
+                />
+                <button
+                    type="submit"
+                    class="h-11 px-4 rounded-xl text-sm font-bold"
+                    style="background-color: var(--color-primary); color: var(--color-bg);"
+                >
+                    Kirim Ulang
+                </button>
+            </form>
+
+            <a href="/login" class="text-sm text-[var(--color-primary)] hover:underline">Kembali ke login</a>
+        </div>
+    </section>
+</BaseLayout>

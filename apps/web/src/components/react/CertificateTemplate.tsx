@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 
 const styles = StyleSheet.create({
     page: {
@@ -109,6 +109,14 @@ const styles = StyleSheet.create({
     footerRight: {
         alignItems: 'flex-end',
     },
+    qr: {
+        width: 62,
+        height: 62,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: '#2a2a3a',
+        borderStyle: 'solid',
+    },
     platformFooter: {
         fontSize: 10,
         color: '#00ff88',
@@ -127,9 +135,10 @@ interface CertProps {
     courseName: string;
     issuedDate: string;
     verifyUrl: string;
+    qrDataUrl?: string;
 }
 
-export function CertificateTemplate({ certId, userName, courseName, issuedDate, verifyUrl }: CertProps) {
+export function CertificateTemplate({ certId, userName, courseName, issuedDate, verifyUrl, qrDataUrl }: CertProps) {
     return (
         <Document>
             <Page size="A4" orientation="landscape" style={styles.page}>
@@ -161,6 +170,7 @@ export function CertificateTemplate({ certId, userName, courseName, issuedDate, 
                         <Text style={styles.verifyUrl}>Verify: {verifyUrl}</Text>
                     </View>
                     <View style={styles.footerRight}>
+                        {qrDataUrl && <Image style={styles.qr} src={qrDataUrl} />}
                         <Text style={styles.platformFooter}>LEARN.HACK.CERTIFY</Text>
                         <Text style={styles.openSource}>Open Source · bariskode.org</Text>
                     </View>

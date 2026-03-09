@@ -1,8 +1,5 @@
 import type { APIRoute } from 'astro';
-import { renderToBuffer } from '@react-pdf/renderer';
-import { createElement } from 'react';
-import { CertificateTemplate } from '../../../components/react/CertificateTemplate';
-import { isCourseCompleted } from '../../../lib/certificate';
+import { ensureCertificateForCourse } from '../../../lib/certificateService';
 
 export const POST: APIRoute = async ({ locals, request }) => {
     if (!locals.user) {
@@ -23,64 +20,22 @@ export const POST: APIRoute = async ({ locals, request }) => {
             });
         }
 
-        // 1. Verify course is completed
-        const completed = await isCourseCompleted(locals.pb, userId, courseId);
-        if (!completed) {
+        const origin = new URL(request.url).origin;
+        const certResult = await ensureCertificateForCourse(
+            locals.pb,
+            { id: userId, email: locals.user.email, username: locals.user.username },
+            courseId,
+            origin
+        );
+
+        if (!certResult.completed || !certResult.certId) {
             return new Response(
                 JSON.stringify({ error: 'Kursus belum selesai. Selesaikan semua lesson terlebih dahulu.' }),
                 { status: 400, headers: { 'Content-Type': 'application/json' } }
             );
         }
 
-        // 2. Check if certificate already exists
-        try {
-            const existing = await locals.pb.collection('certificates').getFirstListItem(
-                `user = '${userId}' && course = '${courseId}'`
-            );
-            return new Response(JSON.stringify({
-                certId: existing.id,
-                alreadyExists: true,
-            }), { headers: { 'Content-Type': 'application/json' } });
-        } catch { /* not found — create new */ }
-
-        // 3. Get course data
-        const course = await locals.pb.collection('courses').getOne(courseId);
-        const origin = new URL(request.url).origin;
-        const issuedDate = new Date().toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-        });
-
-        // 4. Create certificate record first to get the ID
-        const certRecord = await locals.pb.collection('certificates').create({
-            user: userId,
-            course: courseId,
-            issued_at: new Date().toISOString(),
-            is_valid: true,
-        });
-
-        const certId = certRecord.id;
-        const verifyUrl = `${origin}/verify/${certId}`;
-
-        // 5. Generate PDF
-        const pdfBuffer = await renderToBuffer(
-            createElement(CertificateTemplate, {
-                certId,
-                userName: locals.user.username ?? locals.user.email,
-                courseName: course.title,
-                issuedDate,
-                verifyUrl,
-            })
-        );
-
-        // 6. Upload PDF to certificate record
-        const formData = new FormData();
-        formData.append('file', new Blob([pdfBuffer], { type: 'application/pdf' }), `certificate-${certId}.pdf`);
-
-        await locals.pb.collection('certificates').update(certId, formData);
-
-        return new Response(JSON.stringify({ certId, alreadyExists: false }), {
+        return new Response(JSON.stringify({ certId: certResult.certId, alreadyExists: !certResult.created }), {
             headers: { 'Content-Type': 'application/json' },
         });
     } catch (err: any) {

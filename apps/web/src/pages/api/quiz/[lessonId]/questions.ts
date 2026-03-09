@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { isValidPocketBaseId } from '../../../../lib/validation';
 
 export const GET: APIRoute = async ({ params, locals }) => {
     if (!locals.user) {
@@ -9,6 +10,13 @@ export const GET: APIRoute = async ({ params, locals }) => {
     }
 
     try {
+        if (!isValidPocketBaseId(params.lessonId)) {
+            return new Response(JSON.stringify({ error: 'Invalid lessonId' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
         const questions = await locals.pb.collection('quiz_questions').getFullList({
             filter: `lesson = '${params.lessonId}'`,
             sort: '+order',
@@ -28,7 +36,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
         });
     } catch (err: any) {
         return new Response(
-            JSON.stringify({ error: err?.message ?? 'Failed to fetch questions' }),
+            JSON.stringify({ error: 'Failed to fetch questions' }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
     }
