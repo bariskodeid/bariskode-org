@@ -1,18 +1,20 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 migrate((app) => {
+    const lessonsCollection = app.findCollectionByNameOrId("lessons");
+
     const collection = new Collection({
         name: "quiz_questions",
         type: "base",
-        listRule: "lesson.module.course.instructor = @request.auth.id || @request.auth.role = 'admin'",
-        viewRule: "lesson.module.course.instructor = @request.auth.id || @request.auth.role = 'admin'",
+        listRule: "lesson.status = 'published' || lesson.module.course.instructor = @request.auth.id || @request.auth.role = 'admin'",
+        viewRule: "lesson.status = 'published' || lesson.module.course.instructor = @request.auth.id || @request.auth.role = 'admin'",
         createRule: "lesson.module.course.instructor = @request.auth.id || @request.auth.role = 'admin'",
         updateRule: "lesson.module.course.instructor = @request.auth.id || @request.auth.role = 'admin'",
         deleteRule: "lesson.module.course.instructor = @request.auth.id || @request.auth.role = 'admin'",
         fields: [
             {
                 type: "relation", name: "lesson",
-                required: true, collectionId: "lessons", maxSelect: 1,
+                required: true, collectionId: lessonsCollection.id, maxSelect: 1,
             },
             { type: "text", name: "question", required: true, max: 1000 },
             {

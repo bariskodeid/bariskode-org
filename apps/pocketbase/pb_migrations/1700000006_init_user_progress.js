@@ -1,22 +1,25 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 migrate((app) => {
+    const usersCollection = app.findCollectionByNameOrId("users");
+    const lessonsCollection = app.findCollectionByNameOrId("lessons");
+
     const collection = new Collection({
         name: "user_progress",
         type: "base",
         listRule: "user = @request.auth.id || @request.auth.role = 'admin'",
         viewRule: "user = @request.auth.id || @request.auth.role = 'admin'",
-        createRule: "@request.auth.id != '' && @request.data.user = @request.auth.id",
+        createRule: "@request.auth.id != '' && user = @request.auth.id",
         updateRule: "user = @request.auth.id",
         deleteRule: "@request.auth.role = 'admin'",
         fields: [
             {
                 type: "relation", name: "user",
-                required: true, collectionId: "_pb_users_auth_", maxSelect: 1,
+                required: true, collectionId: usersCollection.id, maxSelect: 1,
             },
             {
                 type: "relation", name: "lesson",
-                required: true, collectionId: "lessons", maxSelect: 1,
+                required: true, collectionId: lessonsCollection.id, maxSelect: 1,
             },
             {
                 type: "select", name: "status",

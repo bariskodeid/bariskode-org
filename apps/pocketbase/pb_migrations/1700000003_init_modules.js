@@ -1,6 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 migrate((app) => {
+    const coursesCollection = app.findCollectionByNameOrId("courses");
     const collection = new Collection({
         name: "modules",
         type: "base",
@@ -13,7 +14,7 @@ migrate((app) => {
             { type: "text", name: "title", required: true, max: 200 },
             {
                 type: "relation", name: "course",
-                required: true, collectionId: "courses", maxSelect: 1,
+                required: true, collectionId: coursesCollection.id, maxSelect: 1,
             },
             { type: "number", name: "order", required: true, min: 0 },
             { type: "text", name: "description", required: false, max: 1000 },

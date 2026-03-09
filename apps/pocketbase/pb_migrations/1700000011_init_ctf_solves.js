@@ -1,6 +1,9 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 migrate((app) => {
+    const usersCollection = app.findCollectionByNameOrId("users");
+    const challengesCollection = app.findCollectionByNameOrId("ctf_challenges");
+
     const collection = new Collection({
         name: "ctf_solves",
         type: "base",
@@ -12,11 +15,11 @@ migrate((app) => {
         fields: [
             {
                 type: "relation", name: "user",
-                required: true, collectionId: "_pb_users_auth_", maxSelect: 1,
+                required: true, collectionId: usersCollection.id, maxSelect: 1,
             },
             {
                 type: "relation", name: "challenge",
-                required: true, collectionId: "ctf_challenges", maxSelect: 1,
+                required: true, collectionId: challengesCollection.id, maxSelect: 1,
             },
             { type: "number", name: "points_earned", required: true, min: 0 },
             { type: "number", name: "hints_used", required: true, min: 0 },

@@ -3,6 +3,18 @@
 migrate((app) => {
     const collection = app.findCollectionByNameOrId("users");
 
+    // Make user profiles public
+    collection.listRule = "";
+    collection.viewRule = "";
+
+    // username
+    collection.fields.add(new TextField({
+        name: "username",
+        required: true,
+        max: 50,
+        pattern: "^[a-z0-9_]+$",
+    }));
+
     // role
     collection.fields.add(new SelectField({
         name: "role",

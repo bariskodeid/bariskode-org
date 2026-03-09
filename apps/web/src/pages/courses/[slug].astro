@@ -39,9 +39,9 @@ const allLessons = modules.flatMap(
 let progressMap: Record<string, boolean> = {};
 if (user && allLessons.length > 0) {
   try {
-    const lessonIds = allLessons.map((l) => `'${l.id}'`).join(",");
+    const lessonFilters = allLessons.map((l) => `lesson = '${l.id}'`).join(" || ");
     const progressRecords = await pb.collection("user_progress").getFullList({
-      filter: `user = '${user.id}' && lesson IN (${lessonIds}) && status = 'completed'`,
+      filter: `user = '${user.id}' && (${lessonFilters}) && status = 'completed'`,
     });
     progressMap = Object.fromEntries(progressRecords.map((p: any) => [p.lesson, true]));
   } catch {}
@@ -169,17 +169,29 @@ const thumbnailUrl = course.thumbnail
                     const typeIcon = lesson.type === "reading" ? "📖" : lesson.type === "video" ? "🎬" : lesson.type === "quiz" ? "❓" : "💻";
                     return (
                       <a href={`/learn/${lesson.id}`}
-                         class="flex items-center gap-4 px-5 py-3.5 hover:bg-[var(--color-surface-alt)]/50 transition-colors group">
+                         class:list={[
+                           "flex items-center gap-4 px-5 py-3.5 transition-colors group",
+                           isCompleted ? "hover:bg-[var(--color-surface-alt)]/30" : "hover:bg-[var(--color-surface-alt)]/50"
+                         ]}>
                         <span class="flex items-center justify-center w-7 h-7 rounded-full text-xs font-mono shrink-0"
                               style={isCompleted
                                 ? "background-color: var(--color-primary); color: var(--color-bg);"
                                 : "border: 1px solid var(--color-border); color: var(--color-muted);"}>
                           {isCompleted ? "✓" : lessonIndex + 1}
                         </span>
-                        <div class="flex-1 min-w-0">
-                          <span class="text-sm text-[var(--color-text)] group-hover:text-[var(--color-primary)] transition-colors truncate block">
+                        <div class="flex-1 min-w-0 flex items-center gap-2">
+                          <span class:list={[
+                            "text-sm group-hover:text-[var(--color-primary)] transition-colors truncate block",
+                            isCompleted ? "text-[var(--color-muted)] line-through opacity-70" : "text-[var(--color-text)]"
+                          ]}>
                             {lesson.title}
                           </span>
+                          {isCompleted && (
+                            <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border border-[var(--color-primary)]/30 text-[var(--color-primary)] opacity-80"
+                                  style="background-color: var(--color-primary)/10;">
+                              Selesai
+                            </span>
+                          )}
                         </div>
                         <span class="text-xs shrink-0">{typeIcon}</span>
                         {lesson.estimated_minutes && (

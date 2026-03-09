@@ -1,0 +1,72 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+    title="500 — Server Error"
+    description="Terjadi kesalahan di server."
+>
+    <div class="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
+        <div class="text-center max-w-md">
+            <!-- Glitch Error Icon -->
+            <div class="relative mb-8">
+                <div
+                    class="text-8xl font-black font-mono text-[var(--color-danger)] select-none animate-pulse"
+                >
+                    500
+                </div>
+                <div
+                    class="absolute inset-0 text-8xl font-black font-mono text-[var(--color-danger)] opacity-20 translate-x-1 translate-y-1 select-none"
+                >
+                    500
+                </div>
+            </div>
+
+            <h1 class="text-2xl font-bold text-[var(--color-text)] mb-3">
+                Server Error
+            </h1>
+            <p class="text-[var(--color-muted)] mb-8 leading-relaxed">
+                Terjadi kesalahan pada server. Tim kami sudah diberitahu dan
+                sedang memperbaikinya.
+            </p>
+
+            <!-- Terminal-style error -->
+            <div
+                class="rounded-xl border border-[var(--color-border)] p-4 mb-8 text-left font-mono text-xs"
+                style="background-color: var(--color-surface);"
+            >
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
+                    <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+                    <span class="text-[var(--color-muted)] ml-2">error.log</span
+                    >
+                </div>
+                <div class="text-[var(--color-danger)]">
+                    $ ERROR: Internal Server Error
+                </div>
+                <div class="text-[var(--color-muted)]">$ Status: 500</div>
+                <div class="text-[var(--color-primary)]">
+                    $ Action: The team has been notified
+                </div>
+            </div>
+
+            <div class="flex items-center justify-center gap-3">
+                <a
+                    href="/"
+                    class="flex items-center h-11 px-6 rounded-xl text-sm font-bold transition-all hover:brightness-110"
+                    style="background-color: var(--color-primary); color: var(--color-bg);"
+                >
+                    Kembali ke Beranda
+                </a>
+                <button
+                    onclick="location.reload()"
+                    class="flex items-center h-11 px-6 rounded-xl border border-[var(--color-border)] text-sm font-medium text-[var(--color-muted)] hover:border-[var(--color-primary)]/50 transition-all"
+                    style="background-color: var(--color-surface);"
+                >
+                    Coba Lagi
+                </button>
+            </div>
+        </div>
+    </div>
+</BaseLayout>

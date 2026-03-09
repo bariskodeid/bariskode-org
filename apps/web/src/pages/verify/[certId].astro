@@ -1,0 +1,133 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+const { certId } = Astro.params;
+const pb = Astro.locals.pb;
+
+let certificate: any = null;
+let certUser: any = null;
+let certCourse: any = null;
+let error: string | null = null;
+
+try {
+  certificate = await pb.collection("certificates").getOne(certId as string, {
+    expand: "user,course",
+  });
+  certUser = certificate.expand?.user;
+  certCourse = certificate.expand?.course;
+} catch {
+  error = "Certificate tidak ditemukan.";
+}
+
+const isValid = certificate?.is_valid === true;
+const issuedDate = certificate?.issued_at
+  ? new Date(certificate.issued_at).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    })
+  : "";
+
+const pbUrl = import.meta.env.PUBLIC_POCKETBASE_URL ?? "http://localhost:8090";
+const pdfUrl = certificate?.file
+  ? `${pbUrl}/api/files/certificates/${certificate.id}/${certificate.file}`
+  : null;
+---
+
+<BaseLayout
+  title={isValid ? "Certificate Terverifikasi ✓ — Bariskode" : "Certificate Tidak Valid — Bariskode"}
+  description={isValid ? `Certificate untuk ${certUser?.username ?? "user"} pada kursus ${certCourse?.title ?? ""}` : "Certificate tidak valid atau tidak ditemukan."}
+>
+  <div class="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4 py-12">
+    {isValid && certificate ? (
+      <div class="w-full max-w-lg">
+        <!-- Valid Certificate Card -->
+        <div class="rounded-2xl border-2 border-[var(--color-primary)] overflow-hidden"
+             style="background-color: var(--color-surface);">
+          <!-- Header -->
+          <div class="text-center px-8 pt-8 pb-6 border-b border-[var(--color-border)]"
+               style="background: linear-gradient(180deg, rgba(0,255,136,0.08) 0%, transparent 100%);">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
+                 style="background-color: var(--color-primary); color: var(--color-bg);">
+              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <h1 class="text-xl font-bold text-[var(--color-primary)] mb-1">Certificate Terverifikasi</h1>
+            <p class="text-xs text-[var(--color-muted)] font-mono">ID: {certId}</p>
+          </div>
+
+          <!-- Content -->
+          <div class="px-8 py-6 space-y-5">
+            <!-- Recipient -->
+            <div>
+              <span class="text-[10px] uppercase tracking-widest text-[var(--color-muted)] font-mono">Penerima</span>
+              <p class="text-lg font-bold text-[var(--color-text)] mt-1">{certUser?.username ?? "—"}</p>
+            </div>
+
+            <!-- Course -->
+            <div>
+              <span class="text-[10px] uppercase tracking-widest text-[var(--color-muted)] font-mono">Kursus</span>
+              <p class="text-lg font-semibold text-[var(--color-text)] mt-1">{certCourse?.title ?? "—"}</p>
+              {certCourse?.difficulty && (
+                <span class="inline-block mt-1 text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border"
+                      style={`color: ${certCourse.difficulty === 'beginner' ? '#22c55e' : certCourse.difficulty === 'intermediate' ? '#eab308' : '#ef4444'}; border-color: ${certCourse.difficulty === 'beginner' ? '#22c55e' : certCourse.difficulty === 'intermediate' ? '#eab308' : '#ef4444'};`}>
+                  {certCourse.difficulty}
+                </span>
+              )}
+            </div>
+
+            <!-- Date -->
+            <div>
+              <span class="text-[10px] uppercase tracking-widest text-[var(--color-muted)] font-mono">Tanggal Terbit</span>
+              <p class="text-sm text-[var(--color-text)] mt-1">{issuedDate}</p>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="px-8 pb-8 flex gap-3">
+            {pdfUrl && (
+              <a href={pdfUrl} target="_blank" rel="noopener"
+                 class="flex-1 flex items-center justify-center gap-2 h-11 rounded-xl text-sm font-bold transition-all hover:brightness-110"
+                 style="background-color: var(--color-primary); color: var(--color-bg);">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Download PDF
+              </a>
+            )}
+            <a href="/courses"
+               class="flex items-center justify-center h-11 px-5 rounded-xl border border-[var(--color-border)] text-sm font-medium text-[var(--color-muted)] hover:border-[var(--color-primary)]/50 transition-all"
+               style="background-color: var(--color-bg);">
+              Jelajahi Kursus
+            </a>
+          </div>
+        </div>
+
+        <!-- Platform Branding -->
+        <div class="text-center mt-6">
+          <p class="text-xs text-[var(--color-muted)]">
+            Diverifikasi oleh <a href="/" class="text-[var(--color-primary)] hover:underline font-mono">&lt;bariskode/&gt;</a>
+          </p>
+        </div>
+      </div>
+    ) : (
+      <!-- Invalid / Not Found -->
+      <div class="text-center max-w-sm">
+        <div class="inline-flex items-center justify-center w-20 h-20 rounded-full mb-6"
+             style="background-color: rgba(239,68,68,0.1); border: 2px solid var(--color-danger);">
+          <svg class="w-10 h-10 text-[var(--color-danger)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </div>
+        <h1 class="text-xl font-bold text-[var(--color-danger)] mb-2">Certificate Tidak Valid</h1>
+        <p class="text-sm text-[var(--color-muted)] mb-6">
+          {error ?? "Certificate ini telah dicabut atau tidak ditemukan."}
+        </p>
+        <a href="/"
+           class="inline-flex items-center h-11 px-6 rounded-xl border border-[var(--color-border)] text-sm font-medium text-[var(--color-muted)] hover:border-[var(--color-primary)]/50 transition-all"
+           style="background-color: var(--color-surface);">
+          Kembali ke Beranda
+        </a>
+      </div>
+    )}
+  </div>
+</BaseLayout>

@@ -35,11 +35,12 @@ let courses: Course[] = [];
 try {
   const result = await pb.collection("courses").getList<Course>(1, 50, {
     filter: filters.join(" && "),
-    sort: "-created",
     expand: "instructor,category",
   });
   courses = result.items;
-} catch {}
+} catch (e) {
+  console.error("Error fetching courses:", e);
+}
 
 const difficulties = [
   { value: "beginner", label: "Pemula" },
@@ -57,55 +58,65 @@ const difficulties = [
     </div>
 
     <!-- Filters -->
-    <div class="flex flex-col sm:flex-row gap-3 mb-8">
-      <!-- Search -->
-      <form method="GET" class="contents" id="filter-form">
-        <input type="hidden" name="category" value={selectedCategory} />
-        <input type="hidden" name="difficulty" value={selectedDifficulty} />
-        <div class="relative flex-1 max-w-sm">
-          <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-          </svg>
-          <input type="text" name="q" value={searchQuery} placeholder="Cari kursus..."
-            class="w-full h-11 pl-10 pr-4 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text)] placeholder:text-[var(--color-muted)] outline-none transition-all focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
-            style="background-color: var(--color-surface);"
-          />
+    <div class="flex flex-col gap-4 mb-8">
+      <!-- Search & Difficulty Row -->
+      <div class="flex flex-col sm:flex-row gap-3 items-center w-full">
+        <!-- Search -->
+        <form method="GET" class="w-full sm:flex-1" id="filter-form">
+          <input type="hidden" name="category" value={selectedCategory} />
+          <input type="hidden" name="difficulty" value={selectedDifficulty} />
+          <div class="relative w-full max-w-md">
+            <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input type="text" name="q" value={searchQuery} placeholder="Cari kursus..."
+              class="w-full h-10 pl-10 pr-4 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] placeholder:text-[var(--color-muted)] outline-none transition-all focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)]"
+              style="background-color: var(--color-surface);"
+            />
+          </div>
+        </form>
+
+        <!-- Difficulty Filter -->
+        <div class="flex p-1 rounded-lg border border-[var(--color-border)] w-full sm:w-auto overflow-x-auto" style="background-color: var(--color-surface);">
+          <a href={`/courses${selectedCategory ? `?category=${selectedCategory}` : ''}${searchQuery ? `${selectedCategory ? '&' : '?'}q=${searchQuery}` : ''}`}
+             class:list={["flex-1 sm:flex-none inline-flex items-center justify-center h-8 px-4 rounded-md text-sm font-medium transition-all whitespace-nowrap",
+               !selectedDifficulty ? "text-[var(--color-bg)]" : "text-[var(--color-muted)] hover:text-[var(--color-text)]"]}
+             style={!selectedDifficulty ? "background-color: var(--color-text);" : ""}>
+            Semua Level
+          </a>
+          {difficulties.map(({ value, label }) => {
+            const isActive = selectedDifficulty === value;
+            const href = `/courses?difficulty=${value}${selectedCategory ? `&category=${selectedCategory}` : ''}${searchQuery ? `&q=${searchQuery}` : ''}`;
+            return (
+              <a href={isActive ? `/courses${selectedCategory ? `?category=${selectedCategory}` : ''}${searchQuery ? `${selectedCategory ? '&' : '?'}q=${searchQuery}` : ''}` : href}
+                 class:list={["flex-1 sm:flex-none inline-flex items-center justify-center h-8 px-4 rounded-md text-sm font-medium transition-all whitespace-nowrap",
+                   isActive ? "text-[var(--color-bg)]" : "text-[var(--color-muted)] hover:text-[var(--color-text)]"]}
+                 style={isActive ? "background-color: var(--color-text);" : ""}>
+                {label}
+              </a>
+            );
+          })}
         </div>
-      </form>
+      </div>
 
       <!-- Category Filter -->
-      <div class="flex flex-wrap gap-2">
-        <a href="/courses"
-           class:list={["inline-flex items-center h-11 px-4 rounded-xl border text-sm font-medium transition-all",
+      <div class="flex flex-wrap gap-2 items-center mt-1">
+        <span class="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)] mr-2 hidden sm:block">Kategori</span>
+        <a href={`/courses${selectedDifficulty ? `?difficulty=${selectedDifficulty}` : ''}${searchQuery ? `${selectedDifficulty ? '&' : '?'}q=${searchQuery}` : ''}`}
+           class:list={["inline-flex items-center h-8 px-3 rounded-md border text-xs font-medium transition-all",
              !selectedCategory ? "border-[var(--color-primary)] text-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-primary)]/50"]}
-           style={!selectedCategory ? "background-color: var(--color-primary); color: var(--color-bg);" : "background-color: var(--color-surface);"}>
+           style="background-color: var(--color-surface);">
           Semua
         </a>
         {categories.map((cat) => {
           const isActive = selectedCategory === cat.slug;
           const href = `/courses?category=${cat.slug}${selectedDifficulty ? `&difficulty=${selectedDifficulty}` : ''}${searchQuery ? `&q=${searchQuery}` : ''}`;
           return (
-            <a href={href}
-               class:list={["inline-flex items-center h-11 px-4 rounded-xl border text-sm font-medium transition-all",
-                 isActive ? "border-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-primary)]/50"]}
-               style={isActive ? "background-color: var(--color-primary); color: var(--color-bg);" : "background-color: var(--color-surface);"}>
-              {cat.icon} {cat.name}
-            </a>
-          );
-        })}
-      </div>
-
-      <!-- Difficulty Filter -->
-      <div class="flex gap-2">
-        {difficulties.map(({ value, label }) => {
-          const isActive = selectedDifficulty === value;
-          const href = `/courses?difficulty=${value}${selectedCategory ? `&category=${selectedCategory}` : ''}${searchQuery ? `&q=${searchQuery}` : ''}`;
-          return (
-            <a href={isActive ? `/courses${selectedCategory ? `?category=${selectedCategory}` : ''}${searchQuery ? `${selectedCategory ? '&' : '?'}q=${searchQuery}` : ''}` : href}
-               class:list={["inline-flex items-center h-11 px-4 rounded-xl border text-sm font-medium transition-all",
-                 isActive ? "border-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-primary)]/50"]}
-               style={isActive ? "background-color: var(--color-primary); color: var(--color-bg);" : "background-color: var(--color-surface);"}>
-              {label}
+            <a href={isActive ? `/courses${selectedDifficulty ? `?difficulty=${selectedDifficulty}` : ''}${searchQuery ? `${selectedDifficulty ? '&' : '?'}q=${searchQuery}` : ''}` : href}
+               class:list={["inline-flex items-center gap-1.5 h-8 px-3 rounded-md border text-xs font-medium transition-all",
+                 isActive ? "border-[var(--color-primary)] text-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-primary)]/50"]}
+               style="background-color: var(--color-surface);">
+              <span>{cat.icon}</span> <span>{cat.name}</span>
             </a>
           );
         })}

@@ -1,6 +1,9 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 migrate((app) => {
+    const usersCollection = app.findCollectionByNameOrId("users");
+    const badgesCollection = app.findCollectionByNameOrId("badges");
+
     const collection = new Collection({
         name: "user_badges",
         type: "base",
@@ -12,11 +15,11 @@ migrate((app) => {
         fields: [
             {
                 type: "relation", name: "user",
-                required: true, collectionId: "_pb_users_auth_", maxSelect: 1,
+                required: true, collectionId: usersCollection.id, maxSelect: 1,
             },
             {
                 type: "relation", name: "badge",
-                required: true, collectionId: "badges", maxSelect: 1,
+                required: true, collectionId: badgesCollection.id, maxSelect: 1,
             },
             { type: "date", name: "earned_at", required: true },
         ],

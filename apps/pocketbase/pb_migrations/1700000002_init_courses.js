@@ -1,6 +1,10 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 migrate((app) => {
+    // Look up related collection IDs
+    const usersCollection = app.findCollectionByNameOrId("users");
+    const categoriesCollection = app.findCollectionByNameOrId("categories");
+
     const collection = new Collection({
         name: "courses",
         type: "base",
@@ -15,11 +19,11 @@ migrate((app) => {
             { type: "text", name: "description", required: true, max: 2000 },
             {
                 type: "relation", name: "instructor",
-                required: true, collectionId: "_pb_users_auth_", maxSelect: 1,
+                required: true, collectionId: usersCollection.id, maxSelect: 1,
             },
             {
                 type: "relation", name: "category",
-                required: true, collectionId: "categories", maxSelect: 1,
+                required: true, collectionId: categoriesCollection.id, maxSelect: 1,
             },
             {
                 type: "select", name: "difficulty",
