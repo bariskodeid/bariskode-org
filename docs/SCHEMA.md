@@ -343,7 +343,7 @@ deleteRule: "@request.auth.role = 'admin'"
 
 ```
 listRule:   "user = @request.auth.id || @request.auth.role = 'admin'"
-viewRule:   ""     // public — dibutuhkan untuk halaman /verify/[id]
+viewRule:   "user = @request.auth.id || @request.auth.role = 'admin'"   // public verify dilakukan via trusted server-side fetch, bukan public collection access
 createRule: "@request.auth.id != ''"   // via API route only
 updateRule: "@request.auth.role = 'admin'"
 deleteRule: "@request.auth.role = 'admin'"

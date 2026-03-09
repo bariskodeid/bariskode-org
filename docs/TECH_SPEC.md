@@ -250,7 +250,7 @@ export default defineConfig({
 | `/playground` | SSR + React Island | Optional | Public | Monaco + Judge0, demo tanpa login |
 | `/dashboard` | SSR + React Island | ✓ | Student+ | Progress, XP, enrolled courses |
 | `/ctf` | SSR + React Island | ✓ | Student+ | CTF listing + scoreboard |
-| `/verify/[certId]` | SSR | — | Public | Certificate verification |
+| `/verify/[certId]` | SSR | — | Public | Certificate verification via trusted server-side fetch; PDF download tetap owner/admin only |
 | `/admin` | React Island (SPA) | ✓ | Admin only | Analytics, user management |
 | `/api/*` | Astro API Routes | Varies | Varies | Server-side logic |
 

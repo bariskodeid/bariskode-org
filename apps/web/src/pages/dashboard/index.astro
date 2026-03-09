@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import CourseCard from "../../components/CourseCard.astro";
+import { getDashboardCertificateSummaries } from "../../lib/dashboardCertificates";
 import type { Course } from "../../types/index";
 
 const { pb, user } = Astro.locals;
@@ -76,7 +77,7 @@ try {
                         .getFullList({
                             filter:
                                 courseModuleIds
-                                    .map((id) => `module = '${id}'`)
+                                    .map((id: string) => `module = '${id}'`)
                                     .join(" || ") + " && status = 'published'",
                         });
                     const completedIds = new Set(
@@ -128,6 +129,8 @@ try {
         } catch {}
     }
 } catch {}
+
+const certificates = await getDashboardCertificateSummaries(pb, user.id);
 ---
 
 <BaseLayout
@@ -356,6 +359,96 @@ try {
                                     })}
                                 </span>
                             </a>
+                        ))}
+                    </div>
+                </section>
+            )
+        }
+
+        <!-- Certificates -->
+        {
+            certificates.length > 0 && (
+                <section class="mb-10">
+                    <div class="flex items-center justify-between mb-5">
+                        <h2 class="text-xl font-bold text-[var(--color-text)]">
+                            Sertifikat Saya
+                        </h2>
+                        <a
+                            href="/courses"
+                            class="text-sm text-[var(--color-primary)] hover:underline"
+                        >
+                            Lanjutkan belajar →
+                        </a>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {certificates.map((certificate) => (
+                            <article
+                                class="rounded-xl border border-[var(--color-border)] p-5"
+                                style="background-color: var(--color-surface);"
+                            >
+                                <div class="flex items-start justify-between gap-4">
+                                    <div>
+                                        <p class="text-xs text-[var(--color-muted)] font-mono uppercase tracking-wider mb-2">
+                                            Certificate Ready
+                                        </p>
+                                        <h3 class="text-lg font-bold text-[var(--color-text)]">
+                                            {certificate.courseTitle}
+                                        </h3>
+                                        {
+                                            certificate.issuedAt && (
+                                                <p class="text-sm text-[var(--color-muted)] mt-2">
+                                                    Diterbitkan pada {new Date(certificate.issuedAt).toLocaleDateString("id-ID", {
+                                                        day: "numeric",
+                                                        month: "long",
+                                                        year: "numeric",
+                                                    })}
+                                                </p>
+                                            )
+                                        }
+                                    </div>
+                                    <span
+                                        class="inline-flex items-center rounded-full px-3 py-1 text-xs font-mono"
+                                        style="background-color: var(--color-primary-glow); color: var(--color-primary);"
+                                    >
+                                        Verified
+                                    </span>
+                                </div>
+
+                                <div class="mt-5 flex flex-wrap gap-3">
+                                    <a
+                                        href={certificate.verifyUrl}
+                                        class="inline-flex items-center h-10 px-4 rounded-xl text-sm font-bold transition-all hover:brightness-110"
+                                        style="background-color: var(--color-primary); color: var(--color-bg);"
+                                    >
+                                        Lihat Verifikasi
+                                    </a>
+                                    {
+                                        certificate.downloadUrl && (
+                                            <a
+                                                href={certificate.downloadUrl}
+                                                target="_blank"
+                                                rel="noopener"
+                                                class="inline-flex items-center h-10 px-4 rounded-xl border border-[var(--color-border)] text-sm font-medium text-[var(--color-muted)] hover:border-[var(--color-primary)]/50 transition-all"
+                                                style="background-color: var(--color-bg);"
+                                            >
+                                                Download PDF
+                                            </a>
+                                        )
+                                    }
+                                    {
+                                        certificate.courseSlug && (
+                                            <a
+                                                href={`/courses/${certificate.courseSlug}`}
+                                                class="inline-flex items-center h-10 px-4 rounded-xl border border-[var(--color-border)] text-sm font-medium text-[var(--color-muted)] hover:border-[var(--color-primary)]/50 transition-all"
+                                                style="background-color: var(--color-bg);"
+                                            >
+                                                Buka Kursus
+                                            </a>
+                                        )
+                                    }
+                                </div>
+                            </article>
                         ))}
                     </div>
                 </section>

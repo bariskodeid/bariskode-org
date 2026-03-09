@@ -1,46 +1,34 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import QuizEngine from "../../components/react/QuizEngine";
+import { resolveLessonPageAccess } from "../../lib/lessonPageAccess";
 
 const { lessonId } = Astro.params;
 const { pb, user } = Astro.locals;
+const access = await resolveLessonPageAccess(pb, user, lessonId, {
+    currentPath: Astro.url.pathname,
+    lockedMessage: "Complete the previous lesson before taking this quiz",
+    requireQuiz: true,
+});
 
-if (!user) {
-    return Astro.redirect(
-        `/login?redirect=${encodeURIComponent(Astro.url.pathname)}`,
-    );
+if (access.kind === "redirect") {
+    return Astro.redirect(access.location);
 }
 
-// Fetch lesson metadata
-let lesson: any = null;
-try {
-    lesson = await pb.collection("lessons").getOne(lessonId as string);
-} catch {
-    return Astro.redirect("/404");
-}
-
-if (!lesson || lesson.type !== "quiz") {
-    return Astro.redirect("/404");
-}
-
-// Get course slug for back navigation
-let courseSlug = "";
-try {
-    const mod = await pb.collection("modules").getOne(lesson.module);
-    const course = await pb.collection("courses").getOne(mod.course);
-    courseSlug = course.slug;
-} catch {}
+const lesson = access.context.lesson;
+const courseSlug = access.context.course.slug ?? "";
+const lessonTitle = lesson.title ?? "Quiz";
 ---
 
 <BaseLayout
-    title={`Quiz: ${lesson.title} — Bariskode`}
-    description={`Quiz untuk ${lesson.title}`}
+    title={`Quiz: ${lessonTitle} — Bariskode`}
+    description={`Quiz untuk ${lessonTitle}`}
 >
     <div class="min-h-[calc(100vh-4rem)] py-8">
         <QuizEngine
             client:only="react"
             lessonId={lessonId as string}
-            lessonTitle={lesson.title}
+            lessonTitle={lessonTitle}
             passingScore={lesson.passing_score ?? 70}
             maxAttempts={lesson.max_attempts ?? 0}
             courseSlug={courseSlug}

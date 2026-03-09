@@ -1,8 +1,13 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getCertificateDownloadCtaState } from "../../lib/certificateDownloadAccess";
+import { createTrustedPocketBase } from "../../lib/pocketbase";
+import { isValidPocketBaseId } from "../../lib/validation";
 
 const { certId } = Astro.params;
-const pb = Astro.locals.pb;
+const { user } = Astro.locals;
+
+Astro.response.headers.set("Cache-Control", "private, no-store");
 
 let certificate: any = null;
 let certUser: any = null;
@@ -10,7 +15,13 @@ let certCourse: any = null;
 let error: string | null = null;
 
 try {
+  if (!isValidPocketBaseId(certId)) {
+    throw new Error("invalid certificate id");
+  }
+
+  const pb = await createTrustedPocketBase();
   certificate = await pb.collection("certificates").getOne(certId as string, {
+    fields: "id,user,course,file,issued_at,is_valid,expand.user.username,expand.course.title,expand.course.difficulty",
     expand: "user,course",
   });
   certUser = certificate.expand?.user;
@@ -28,10 +39,14 @@ const issuedDate = certificate?.issued_at
     })
   : "";
 
-const pbUrl = import.meta.env.PUBLIC_POCKETBASE_URL ?? "http://localhost:8090";
 const pdfUrl = certificate?.file
-  ? `${pbUrl}/api/files/certificates/${certificate.id}/${certificate.file}`
+  ? `/api/certificates/${certificate.id}/download`
   : null;
+const downloadCtaState = getCertificateDownloadCtaState({
+  user,
+  certificateUserId: certificate?.user,
+  hasFile: Boolean(certificate?.file),
+});
 ---
 
 <BaseLayout
@@ -86,13 +101,26 @@ const pdfUrl = certificate?.file
 
           <!-- Actions -->
           <div class="px-8 pb-8 flex gap-3">
-            {pdfUrl && (
+            {pdfUrl && downloadCtaState === 'download' && (
               <a href={pdfUrl} target="_blank" rel="noopener"
                  class="flex-1 flex items-center justify-center gap-2 h-11 rounded-xl text-sm font-bold transition-all hover:brightness-110"
                  style="background-color: var(--color-primary); color: var(--color-bg);">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                 Download PDF
               </a>
+            )}
+            {downloadCtaState === 'login' && (
+              <a href={`/login?redirect=${encodeURIComponent(`/verify/${certId}`)}`}
+                 class="flex-1 flex items-center justify-center gap-2 h-11 rounded-xl border border-[var(--color-border)] text-sm font-medium text-[var(--color-muted)] hover:border-[var(--color-primary)]/50 transition-all"
+                 style="background-color: var(--color-bg);">
+                 Login untuk Download PDF
+              </a>
+            )}
+            {downloadCtaState === 'restricted' && (
+              <p class="flex-1 flex items-center justify-center text-center h-11 rounded-xl border border-[var(--color-border)] px-4 text-sm font-medium text-[var(--color-muted)]"
+                 style="background-color: var(--color-bg);">
+                PDF hanya bisa diunduh oleh pemilik sertifikat atau admin.
+              </p>
             )}
             <a href="/courses"
                class="flex items-center justify-center h-11 px-5 rounded-xl border border-[var(--color-border)] text-sm font-medium text-[var(--color-muted)] hover:border-[var(--color-primary)]/50 transition-all"

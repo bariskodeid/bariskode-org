@@ -2,10 +2,16 @@
 
 import type PocketBase from 'pocketbase';
 import type { User } from './types';
+import type { LessonAccessContext } from './lib/lessonAccess';
 
-declare namespace App {
-    interface Locals {
-        pb: PocketBase;
-        user: User | null;
+declare global {
+    namespace App {
+        interface Locals {
+            pb: PocketBase;
+            user: User | null;
+            lessonAccess?: LessonAccessContext;
+        }
     }
 }
+
+export {};

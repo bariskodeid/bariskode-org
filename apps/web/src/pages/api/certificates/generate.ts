@@ -1,5 +1,7 @@
 import type { APIRoute } from 'astro';
 import { ensureCertificateForCourse } from '../../../lib/certificateService';
+import { createTrustedPocketBase } from '../../../lib/pocketbase';
+import { isValidPocketBaseId } from '../../../lib/validation';
 
 export const POST: APIRoute = async ({ locals, request }) => {
     if (!locals.user) {
@@ -20,9 +22,17 @@ export const POST: APIRoute = async ({ locals, request }) => {
             });
         }
 
+        if (!isValidPocketBaseId(courseId)) {
+            return new Response(JSON.stringify({ error: 'Invalid courseId' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
         const origin = new URL(request.url).origin;
+        const pb = await createTrustedPocketBase();
         const certResult = await ensureCertificateForCourse(
-            locals.pb,
+            pb,
             { id: userId, email: locals.user.email, username: locals.user.username },
             courseId,
             origin
@@ -38,10 +48,9 @@ export const POST: APIRoute = async ({ locals, request }) => {
         return new Response(JSON.stringify({ certId: certResult.certId, alreadyExists: !certResult.created }), {
             headers: { 'Content-Type': 'application/json' },
         });
-    } catch (err: any) {
-        console.error('Certificate generation error:', err);
+    } catch {
         return new Response(
-            JSON.stringify({ error: err?.message ?? 'Failed to generate certificate' }),
+            JSON.stringify({ error: 'Failed to generate certificate' }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         );
     }

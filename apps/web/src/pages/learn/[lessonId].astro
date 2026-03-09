@@ -1,46 +1,25 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import { resolveLessonPageAccess } from "../../lib/lessonPageAccess";
 import type { Lesson, Module, Course } from "../../types/index";
 import { marked } from "marked";
 import DOMPurify from "isomorphic-dompurify";
 
 const { lessonId } = Astro.params;
 const { pb, user } = Astro.locals;
+const access = await resolveLessonPageAccess(pb, user, lessonId, {
+    currentPath: Astro.url.pathname,
+    lockedMessage: "Complete the previous lesson before opening this lesson",
+});
 
-if (!user) {
-    return Astro.redirect(
-        `/login?redirect=${encodeURIComponent(Astro.url.pathname)}`,
-    );
+if (access.kind === "redirect") {
+    return Astro.redirect(access.location);
 }
 
-// Fetch current lesson
-let lesson: Lesson | null = null;
-try {
-    lesson = await pb.collection("lessons").getOne<Lesson>(lessonId as string);
-} catch {
-    return Astro.redirect("/404");
-}
-if (!lesson) return Astro.redirect("/404");
-
-// Fetch module this lesson belongs to
-let currentModule: (Module & { course?: string }) | null = null;
-try {
-    currentModule = await pb
-        .collection("modules")
-        .getFirstListItem<
-            Module & { course?: string }
-        >(`id = '${(lesson as any).module}'`);
-} catch {}
-
-// Fetch the course
-let course: Course | null = null;
-if (currentModule?.course) {
-    try {
-        course = await pb
-            .collection("courses")
-            .getOne<Course>(currentModule.course);
-    } catch {}
-}
+const lesson = access.context.lesson as Lesson;
+const currentModule = access.context.module as Module & { course?: string };
+const course = access.context.course as Course;
+const currentUser = user!;
 
 // Fetch ALL modules and lessons for sidebar navigation
 let allModules: (Module & {
@@ -67,7 +46,7 @@ if (course) {
 // Flatten all lessons in order for prev/next navigation
 const orderedLessons = allModules.flatMap((m) =>
     (m.expand?.lessons_via_module ?? [])
-        .filter((l: Lesson) => l.status === "published")
+        .filter((l: Lesson) => l.status === "published" || l.id === lesson.id)
         .sort((a: Lesson, b: Lesson) => a.order - b.order),
 );
 
@@ -84,7 +63,7 @@ if (orderedLessons.length > 0) {
     try {
         const ids = orderedLessons.map((l) => `'${l.id}'`).join(",");
         const records = await pb.collection("user_progress").getFullList({
-            filter: `user = '${user.id}' && lesson IN (${ids})`,
+            filter: `user = '${currentUser.id}' && lesson IN (${ids})`,
         });
         progressMap = Object.fromEntries(
             records.map((r: any) => [r.lesson, r.status]),

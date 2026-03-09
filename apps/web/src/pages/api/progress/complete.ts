@@ -1,6 +1,57 @@
 import type { APIRoute } from 'astro';
 import { ensureCertificateForCourse, getCourseIdByLessonId } from '../../../lib/certificateService';
-import { isValidPocketBaseId } from '../../../lib/validation';
+import { assertLessonUnlocked, assertUserCanAccessLesson, getUserProgressRecord, LessonAccessError } from '../../../lib/lessonAccess';
+import { createTrustedPocketBase } from '../../../lib/pocketbase';
+import { isValidPocketBaseId, normalizeInternalRedirect } from '../../../lib/validation';
+import { getXpSyncState } from '../../../lib/xpSync';
+
+async function markLessonCompletedIdempotently(pb: Awaited<ReturnType<typeof createTrustedPocketBase>>, userId: string, lessonId: string) {
+    const existing = await getUserProgressRecord(pb, userId, lessonId);
+    const wasCompleted = existing?.status === 'completed';
+
+    if (existing) {
+        if (!wasCompleted) {
+            await pb.collection('user_progress').update(existing.id, {
+                status: 'completed',
+                completed_at: new Date().toISOString(),
+            });
+        }
+
+        return { wasCompleted };
+    }
+
+    try {
+        await pb.collection('user_progress').create({
+            user: userId,
+            lesson: lessonId,
+            status: 'completed',
+            attempts: 1,
+            completed_at: new Date().toISOString(),
+        });
+
+        return { wasCompleted: false };
+    } catch (error: any) {
+        if (error?.status !== 400 && error?.status !== 409) {
+            throw error;
+        }
+
+        const concurrentRecord = await getUserProgressRecord(pb, userId, lessonId);
+        if (!concurrentRecord) {
+            throw error;
+        }
+
+        if (concurrentRecord.status !== 'completed') {
+            await pb.collection('user_progress').update(concurrentRecord.id, {
+                status: 'completed',
+                completed_at: new Date().toISOString(),
+            });
+
+            return { wasCompleted: false };
+        }
+
+        return { wasCompleted: true };
+    }
+}
 
 export const POST: APIRoute = async ({ locals, request }) => {
     if (!locals.user) {
@@ -19,7 +70,7 @@ export const POST: APIRoute = async ({ locals, request }) => {
         if (contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data')) {
             const formData = await request.formData();
             lessonId = formData.get('lessonId')?.toString() ?? '';
-            redirectUrl = formData.get('redirect')?.toString() ?? null;
+            redirectUrl = normalizeInternalRedirect(formData.get('redirect')?.toString() ?? null, `/learn/${lessonId}`);
         } else {
             const body = await request.json();
             lessonId = body.lessonId;
@@ -40,43 +91,22 @@ export const POST: APIRoute = async ({ locals, request }) => {
         }
 
         const userId = locals.user.id;
-        const pb = locals.pb;
+        const pb = await createTrustedPocketBase();
 
-        // Check if progress record already exists
-        let existing: any = null;
-        try {
-            existing = await pb.collection('user_progress').getFirstListItem(
-                `user = '${userId}' && lesson = '${lessonId}'`
-            );
-        } catch { /* not found — will create */ }
+        const context = await assertUserCanAccessLesson(pb, locals.user, lessonId);
+        const { lesson } = context;
 
-        if (existing) {
-            if (existing.status !== 'completed') {
-                await pb.collection('user_progress').update(existing.id, {
-                    status: 'completed',
-                    completed_at: new Date().toISOString(),
-                });
-            }
-        } else {
-            await pb.collection('user_progress').create({
-                user: userId,
-                lesson: lessonId,
-                status: 'completed',
-                attempts: 1,
-                completed_at: new Date().toISOString(),
+        if (lesson.type === 'quiz') {
+            return new Response(JSON.stringify({ error: 'Quiz lessons must be completed via quiz submission' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
             });
         }
 
-        // Get XP reward from lesson
-        const lesson = await pb.collection('lessons').getOne(lessonId);
-        const xpGain = lesson.xp_reward ?? 10;
+        await assertLessonUnlocked(pb, userId, context, 'Complete the previous lesson before marking this one finished');
 
-        // Update user XP (only if not already completed)
-        if (!existing || existing.status !== 'completed') {
-            await pb.collection('users').update(userId, {
-                'xp+': xpGain,
-            });
-        }
+        const { wasCompleted } = await markLessonCompletedIdempotently(pb, userId, lessonId);
+        const xp = getXpSyncState(wasCompleted);
 
         let certificate: { certId: string | null; created: boolean } | null = null;
         const origin = new URL(request.url).origin;
@@ -101,10 +131,17 @@ export const POST: APIRoute = async ({ locals, request }) => {
             });
         }
 
-        return new Response(JSON.stringify({ success: true, xpGained: xpGain, certificate }), {
+        return new Response(JSON.stringify({ success: true, xp, certificate }), {
             headers: { 'Content-Type': 'application/json' },
         });
     } catch (err: any) {
+        if (err instanceof LessonAccessError) {
+            return new Response(JSON.stringify({ error: err.message }), {
+                status: err.status,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
         return new Response(
             JSON.stringify({ error: 'Failed to mark complete' }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }

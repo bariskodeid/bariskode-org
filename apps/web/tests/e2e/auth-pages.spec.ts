@@ -13,3 +13,10 @@ test('reset-password page renders with token', async ({ page }) => {
     await expect(page.getByRole('heading', { name: /Reset Password/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Simpan Password Baru/i })).toBeVisible();
 });
+
+test('forgot-password page renders request form', async ({ page }) => {
+    await page.goto('/forgot-password');
+
+    await expect(page.getByRole('heading', { name: /Lupa Password/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Kirim Link Reset/i })).toBeVisible();
+});

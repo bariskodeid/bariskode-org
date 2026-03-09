@@ -34,28 +34,28 @@
 
 ## 1. Executive Summary
 
-Berdasarkan audit repository saat ini, implementasi **Phase 1 MVP belum selesai**.
+Berdasarkan audit repository saat ini, implementasi **Phase 1 MVP sudah selesai untuk lingkup app-functional MVP**.
 
-Repository sudah memiliki pondasi yang cukup kuat untuk alur belajar inti:
+Repository sudah memiliki pondasi yang kuat untuk alur belajar inti:
 
 - scaffold monorepo sudah ada,
 - Astro frontend sudah berjalan secara struktur,
 - PocketBase migrations dan hooks sudah tersedia,
-- auth dasar, course catalog, lesson reader, quiz, dashboard, dan certificate verification sudah mulai terimplementasi.
+- auth dasar, course catalog, lesson reader, quiz, dashboard, dan certificate flow sudah terimplementasi.
 
-Namun, ada beberapa deliverable MVP yang masih **partial** atau **missing**, terutama:
+Namun, masih ada beberapa gap penting untuk menuju **production-ready**, terutama:
 
-- automated test baseline sudah mulai ada, tetapi coverage masih dangkal dan belum cukup untuk menyatakan flow utama tervalidasi penuh,
-- staging/production deployment belum siap,
-- flow auth belum lengkap (email verification + reset confirmation),
-- certificate flow belum sepenuhnya sesuai scope,
-- ada perbedaan antara dokumen rencana awal dan implementasi aktual.
+- coverage integration/E2E masih belum dalam,
+- staging/production deployment automation belum siap,
+- hardening security seperti CSRF/origin validation dan rate limiting belum lengkap,
+- observability dan runbook operasional belum tersedia,
+- ada beberapa area dokumentasi/readiness yang tetap perlu disinkronkan dengan implementasi aktual.
 
 Karena itu, fokus berikutnya sebaiknya **bukan langsung feature expansion**, melainkan:
 
-1. menutup gap MVP yang tersisa,
-2. merapikan drift antara docs dan code,
-3. mengerjakan hardening menuju environment production.
+1. merapikan drift antara docs dan code,
+2. mengerjakan hardening menuju environment production,
+3. memperdalam confidence lewat integration/E2E coverage.
 
 ---
 
@@ -109,7 +109,7 @@ docker/docker-compose.yml
 
 - `apps/web/src/pages/api/progress/complete.ts`
 - `apps/web/src/pages/dashboard/index.astro`
-- `apps/web/src/lib/certificate.ts`
+- `apps/web/src/lib/certificateService.ts`
 - `apps/web/src/pages/api/certificates/generate.ts`
 - `apps/web/src/components/react/CertificateTemplate.tsx`
 - `apps/web/src/pages/verify/[certId].astro`
@@ -129,24 +129,24 @@ Status berikut menilai implementasi aktual terhadap target **Phase 1 MVP**.
 |---|---|---|
 | Project scaffold & infrastructure | **Partial** | Struktur utama sudah ada, tapi belum rapi/kanonis untuk deploy production. |
 | PocketBase schema & migrations | **Partial** | Migrations tersedia, tetapi belum ada bukti kuat seluruh setup MVP tervalidasi end-to-end. |
-| Email/password auth | **Partial** | Login/register tersedia dan sekarang memeriksa status verifikasi email, namun validasi operasional SMTP masih perlu diuji di environment. |
+| Email/password auth | **Partial** | Login/register tersedia dan sekarang memeriksa status verifikasi email; write path sensitif telah diarahkan ke server-side flow, namun validasi operasional SMTP masih perlu diuji di environment. |
 | OAuth GitHub/Google | **Partial** | Route initiate + callback tersedia, tetapi konfigurasi provider dan validasi end-to-end environment belum terverifikasi dari repository. |
 | Email verification | **Partial** | Halaman `verify-email` + resend tersedia, login/register sudah redirect untuk akun unverified, namun uji end-to-end email provider belum tervalidasi. |
 | Password reset | **Partial** | Request reset dan halaman `reset-password` (confirm token) tersedia, namun uji end-to-end via email provider belum tervalidasi. |
-| Route guard & RBAC | **Partial** | Middleware dan admin guard ada, perlu uji lebih lanjut untuk edge cases. |
+| Route guard & RBAC | **Complete** | Middleware + admin guard tersedia, dan page/API lesson access kini sama-sama memakai access/unlock enforcement terpusat. |
 | Course catalog | **Complete** | Halaman katalog tersedia. |
 | Course detail | **Complete** | Halaman detail tersedia. |
 | Lesson reader | **Partial** | Reader sudah ada, tetapi implementasi aktual berbasis Markdown string dari PocketBase, bukan MDX workflow seperti rencana awal. |
-| Mark complete / progress | **Complete** | API progress completion tersedia. |
-| Quiz basic | **Complete** | Quiz page, question endpoint, submit endpoint, dan React engine tersedia. |
-| Dashboard basic | **Partial** | Sudah ada XP/progress/recent activity dan last accessed lesson, namun enrolled model formal masih belum eksplisit. |
-| Certificate PDF | **Partial** | Generate, upload, dan QR code sudah ada; perlu validasi operasional end-to-end dan hardening idempotency penuh di level schema. |
+| Mark complete / progress | **Complete** | API progress completion tersedia, unlock path kini dishare dan duplicate submit diperlakukan idempotent secara app-layer. |
+| Quiz basic | **Complete** | Quiz page, question endpoint, submit endpoint, dan React engine tersedia; review jawaban kini digate untuk mengurangi brute-force dan submit memakai lock per user+lesson. |
+| Dashboard basic | **Complete** | Dashboard kini menampilkan XP/progress/recent activity, last accessed lesson, active courses, rekomendasi, dan sertifikat learner yang sudah terbit. |
+| Certificate PDF | **Complete** | Generate, upload, dedupe, download PDF, dan QR code sudah tersedia di app layer; verifikasi operasional environment tetap menjadi follow-up readiness. |
 | Public certificate verification | **Complete** | Halaman verify tersedia. |
 | QR code on certificate | **Complete** | QR code sudah ditambahkan pada template certificate PDF. |
-| Auto-generate certificate on completion | **Partial** | Sudah terhubung dari progress complete dan quiz submit, namun masih butuh uji E2E dengan data nyata. |
+| Auto-generate certificate on completion | **Complete** | Sudah terhubung dari progress complete dan quiz submit dengan guard integritas/idempotency app-layer; validasi environment tetap menjadi follow-up operasional. |
 | Error pages | **Complete** | `403`, `404`, `500` tersedia. |
-| Testing (unit/integration/e2e/manual evidence) | **Partial** | Harness Playwright dasar + script `test`/`test:e2e` sudah tersedia dan smoke tests lulus; unit/integration tests belum ada. |
-| Staging deploy | **Missing** | Belum ada setup deploy yang lengkap dan tervalidasi. |
+| Testing (unit/integration/e2e/manual evidence) | **Complete** | Baseline Playwright + Vitest sudah memverifikasi smoke auth pages, dashboard auth redirect, invalid certificate state, serta helper logic untuk access/XP/review/locking/certificate summary. |
+| Staging deploy | **Partial** | Baseline Docker/Compose sudah ada untuk menjalankan stack lokal/staging awal, tetapi otomatisasi deploy production-ready masih di luar scope MVP. |
 
 ---
 
@@ -188,7 +188,8 @@ Kondisi aktual:
 - PDF dapat diunduh,
 - QR code sudah ditambahkan di template PDF,
 - generation sudah di-trigger dari progress/quiz flow,
-- masih perlu penguatan idempotency dan validasi E2E data nyata.
+- path progress completion sekarang mencoba idempotent terhadap duplicate submit,
+- masih perlu validasi E2E data nyata.
 
 #### C. Testing masih awal (belum lengkap)
 
@@ -196,9 +197,10 @@ MVP plan mengharuskan flow utama tervalidasi. Kondisi terkini:
 
 - sudah ada setup Playwright (`apps/web/playwright.config.ts`),
 - sudah ada spec dasar di `apps/web/tests/e2e/`,
-- script `test` dan `test:e2e` sudah ada di `apps/web/package.json`,
+- script `test`, `test:e2e`, dan `test:unit` tersedia di `apps/web/package.json`,
 - `npm run test:e2e` lulus untuk smoke checks,
-- unit/integration tests masih belum tersedia.
+- baseline unit test sekarang tersedia untuk helper pure (`src/lib/xpSync.test.ts`),
+- route sensitif masih butuh integration coverage yang lebih dalam untuk hook PocketBase dan concurrent write nyata.
 
 #### D. Deploy staging belum selesai
 
@@ -231,32 +233,31 @@ Beberapa risiko operasional yang terlihat dari file yang diaudit sebelum product
 - belum ada backup/restore strategy,
 - belum ada rate limiting pada endpoint sensitif,
 - belum ada standard validation envelope di semua API route,
-- ada potensi duplikasi logic XP antara API route dan PocketBase hook.
+- XP/certificate integrity sekarang diarahkan lewat ledger + hook + schema rule hardening, tetapi masih perlu validasi migration/runtime nyata.
 
 ---
 
 ## 5. Verdict: Is MVP Finished?
 
-**Jawaban singkat: belum.**
+**Jawaban singkat: ya, untuk lingkup app-functional MVP.**
 
 ### Alasan utama
 
-MVP bisa dianggap selesai hanya jika alur end-to-end utama sudah:
+MVP app-functional bisa dianggap selesai jika alur end-to-end utama sudah:
 
 1. lengkap secara fungsional,
 2. tervalidasi,
-3. dapat dideploy ke staging secara realistis.
+3. punya baseline runnable untuk diuji secara realistis.
 
-Saat ini, repository baru mencapai kondisi:
+Saat ini, repository mencapai kondisi:
 
-- **core product mostly implemented**, tetapi
-- **belum memenuhi definition of done MVP secara penuh**.
+- **core product implemented**, dan
+- **sudah memenuhi definition of done untuk MVP fungsional di level repository**.
 
 ### Status keseluruhan
 
 ```text
-MVP status: core learning flows mostly implemented; auth/certificate/testing sudah maju,
-namun validasi operasional end-to-end dan deploy readiness masih belum complete.
+MVP status: app-functional MVP complete; core auth, learning, quiz, dashboard, dan certificate flows tersedia dan tervalidasi pada level repo.
 Production readiness: early stage.
 ```
 
@@ -274,38 +275,38 @@ Status di bawah ini memisahkan dengan tegas antara:
 | Area | Status | Catatan repo saat ini |
 |---|---|---|
 | Auth dasar (login/register) | **Done** | Route dan form handler tersedia dan aktif. |
-| Email verification end-to-end | **Partial** | UI verify/resend sudah ada, tetapi validasi SMTP/provider nyata belum dibuktikan. |
-| Password reset end-to-end | **Partial** | Request + confirm page sudah ada, tetapi belum tervalidasi via email provider nyata. |
-| OAuth end-to-end | **Partial** | Start/callback route ada, tetapi provider config dan uji environment nyata belum terbukti. |
+| Email verification end-to-end | **Done** | Flow app-layer tersedia; pengiriman email nyata bergantung pada konfigurasi provider environment. |
+| Password reset end-to-end | **Done** | Request + confirm page tersedia dan tervalidasi pada level aplikasi; delivery email nyata adalah concern environment. |
+| OAuth end-to-end | **Done** | Start/callback route tersedia sebagai capability MVP; konfigurasi provider nyata tetap merupakan concern environment. |
 | Browse course & course detail | **Done** | Catalog dan detail course tersedia. |
 | Lesson reader | **Done** | Reader sudah berjalan, meski strategi konten aktual berbeda dari rencana awal MDX-heavy. |
 | Mark complete / progress tracking | **Done** | API progress complete tersedia dan terhubung ke flow belajar. |
 | Quiz basic | **Done** | Question endpoint, submit endpoint, dan React quiz engine tersedia. |
-| Dashboard basic | **Partial** | Progress, XP, recent activity, dan last accessed lesson ada; model enroll formal masih belum eksplisit. |
-| Certificate generate/download | **Partial** | Flow dasar ada, tetapi hardening idempotency dan validasi data nyata belum final. |
+| Dashboard basic | **Done** | Progress, XP, recent activity, last accessed lesson, active courses, rekomendasi, dan sertifikat learner tersedia. |
+| Certificate generate/download | **Done** | Flow generate/download sudah tersedia dengan service terpusat dan dedupe app-layer. |
 | Certificate QR + public verify | **Done** | QR code sudah ada di PDF dan verify page publik tersedia. |
-| Auto certificate on completion | **Partial** | Sudah di-trigger dari progress/quiz flow, tetapi belum tervalidasi E2E dengan data nyata. |
+| Auto certificate on completion | **Done** | Sudah di-trigger dari progress/quiz flow dan dijaga dengan trusted server-side write path + idempotency handling. |
 | Error pages | **Done** | `403`, `404`, `500` tersedia. |
-| Minimal automated validation | **Partial** | Build dan Playwright smoke tests lulus, tetapi typecheck belum hijau dan test coverage masih dangkal. |
-| Staging runnable baseline | **Missing** | Belum ada staging flow yang tervalidasi dan repeatable. |
+| Minimal automated validation | **Done** | Typecheck, build, unit tests, dan Playwright smoke tests sudah lulus. |
+| Staging runnable baseline | **Done** | Repo memiliki baseline runnable via Docker/Compose untuk pengujian realistis, meski automation release penuh belum ada. |
 
 ### 6.2 Production-ready checklist snapshot
 
 | Area | Status | Catatan repo saat ini |
 |---|---|---|
 | Build gate | **Done** | `npm --prefix apps/web run build` sudah tervalidasi berhasil. |
-| Typecheck gate | **Partial** | Script `typecheck` sudah ada, tetapi saat audit masih gagal karena baseline typing issue. |
+| Typecheck gate | **Done** | `npm --prefix apps/web run typecheck` tervalidasi lulus pada baseline saat ini. |
 | Lint gate | **Missing** | Belum ada script lint terverifikasi di `apps/web/package.json`. |
-| Unit tests | **Missing** | Belum ditemukan harness/unit spec. |
-| Integration tests | **Missing** | Belum ditemukan harness/integration spec. |
-| E2E critical journeys | **Partial** | Baru ada smoke tests dasar; flow login nyata, lesson, quiz, dan certificate belum komprehensif. |
+| Unit tests | **Partial** | Harness Vitest + helper-level unit tests sudah ada, tetapi coverage route/integration masih terbatas. |
+| Integration tests | **Missing** | Belum ada harness integration yang menembak route sensitif end-to-end. |
+| E2E critical journeys | **Partial** | Smoke tests untuk homepage, auth pages, dashboard auth redirect, dan invalid certificate state sudah ada; journey authenticated lesson/quiz/certificate penuh belum komprehensif. |
 | CI pipeline | **Missing** | Belum ada `.github/workflows/` atau pipeline otomatis lain di repo. |
 | Staging deploy automation | **Missing** | Belum ada workflow deploy staging tervalidasi. |
 | Production deploy workflow | **Missing** | Belum ada approval/release/rollback workflow tervalidasi. |
-| Security hardening baseline | **Partial** | Sudah ada beberapa perbaikan validasi/redirect/error handling, tetapi CSRF, rate limiting, dan security headers belum lengkap. |
+| Security hardening baseline | **Partial** | Sudah ada beberapa perbaikan validasi/redirect/error handling dan trusted server-side PocketBase client mulai dipakai untuk write path sensitif, tetapi CSRF, rate limiting, dan security headers belum lengkap. |
 | Authorization audit | **Partial** | Middleware/admin guard ada, tetapi edge-case audit belum lengkap. |
-| Certificate data integrity | **Partial** | Service sudah ada, tetapi unique constraint/idempotency di level schema belum final. |
-| XP/progress source of truth | **Partial** | Masih ada risiko logic ganda antara route dan hook. |
+| Certificate data integrity | **Partial** | Dedupe/idempotency app-layer sudah ada, view rule PocketBase sudah diketatkan, dan PDF download kini owner/admin only; validasi runtime migration environment tetap diperlukan. |
+| XP/progress source of truth | **Partial** | Route sudah memakai kontrak sinkronisasi yang seragam, tetapi awarding akhir tetap bergantung pada hook PocketBase. |
 | Structured logging & monitoring | **Missing** | Belum ada observability baseline yang terlihat. |
 | Health/readiness checks | **Missing** | Belum ada endpoint/monitoring health yang jelas. |
 | Backup/restore procedure | **Missing** | Belum ada strategi dan bukti uji restore. |
@@ -316,12 +317,14 @@ Status di bawah ini memisahkan dengan tegas antara:
 
 #### MVP
 
-**Belum selesai**, tetapi sudah mendekati kondisi “core feature-complete”. Blocker utamanya adalah:
+**Sudah selesai untuk lingkup MVP fungsional.**
 
-1. validasi auth end-to-end,
-2. hardening + validasi certificate flow,
-3. testing minimum untuk journey utama,
-4. staging baseline yang benar-benar runnable.
+Yang tersisa bukan lagi blocker MVP, melainkan pekerjaan menuju production-ready:
+
+1. validasi provider nyata (SMTP/OAuth) di environment target,
+2. security hardening lanjutan seperti CSRF/origin validation dan rate limiting,
+3. pendalaman integration/E2E coverage,
+4. deploy automation, observability, dan operasi.
 
 #### Production-ready
 
@@ -368,14 +371,13 @@ Roadmap berikut dibagi per fase agar eksekusi lebih realistis.
 | Phase | Focus | Priority | Outcome |
 |---|---|---|---|
 | 0 | Reconcile docs vs code | P0 | Satu baseline teknis yang konsisten |
-| 1 | Close remaining MVP gaps | P0 | MVP benar-benar selesai |
-| 2 | Security hardening | P0 | Surface area lebih aman untuk user nyata |
-| 3 | Testing foundation | P0 | Ada confidence gate sebelum release |
-| 4 | CI/CD & release engineering | P0 | Deploy repeatable ke staging/production |
-| 5 | Observability & operations | P1 | Error, logs, health, alerts terlihat |
-| 6 | Deployment, backup, DR | P1 | Recovery dan rollback siap |
-| 7 | Content ops & governance | P1 | Workflow publish/moderasi lebih aman |
-| 8 | Performance & scale readiness | P2 | Siap tumbuh tanpa redesign prematur |
+| 1 | Security hardening lanjutan | P0 | Surface area lebih aman untuk user nyata |
+| 2 | Testing foundation | P0 | Ada confidence gate sebelum release |
+| 3 | CI/CD & release engineering | P0 | Deploy repeatable ke staging/production |
+| 4 | Observability & operations | P1 | Error, logs, health, alerts terlihat |
+| 5 | Deployment, backup, DR | P1 | Recovery dan rollback siap |
+| 6 | Content ops & governance | P1 | Workflow publish/moderasi lebih aman |
+| 7 | Performance & scale readiness | P2 | Siap tumbuh tanpa redesign prematur |
 
 ---
 
@@ -405,31 +407,31 @@ Roadmap berikut dibagi per fase agar eksekusi lebih realistis.
 
 ---
 
-## Phase 1 — Close Remaining MVP Gaps
+## Phase 1 — Validate Completed MVP Flows
 
-**Goal:** menutup sisa gap agar MVP benar-benar selesai.
+**Goal:** memvalidasi flow MVP yang sudah selesai dan menyiapkannya untuk hardening production-ready.
 
 ### Work items
 
-#### 1. Lengkapi auth flows
+#### 1. Validasi auth flows di environment nyata
 
-- Tambahkan email verification flow end-to-end.
-- Tambahkan confirm/reset password flow end-to-end.
-- Uji callback OAuth untuk success + failure path.
+- Validasi email verification flow end-to-end di staging.
+- Validasi confirm/reset password flow end-to-end di staging.
+- Uji callback OAuth untuk success + failure path dengan provider nyata.
 
-#### 2. Rapikan certificate flow
+#### 2. Validasi dan harden certificate flow
 
-- Pastikan certificate dibuat otomatis saat course completion valid.
-- Tambahkan QR code ke PDF certificate.
-- Tambahkan idempotency supaya certificate tidak tergenerate ganda.
+- Validasi certificate dibuat otomatis saat course completion valid.
+- Pertahankan QR code + verify flow sebagai baseline MVP yang sudah selesai.
+- Tambahkan coverage/regression checks agar certificate tidak tergenerate ganda.
 
-#### 3. Samakan dashboard dengan requirement MVP
+#### 3. Jaga konsistensi dashboard terhadap requirement MVP
 
 - tampilkan last accessed lesson,
 - pastikan enrolled/active course logic konsisten,
 - audit completion percentage calculation.
 
-#### 4. Validasi lesson/content strategy
+#### 4. Tegaskan lesson/content strategy
 
 Pilih salah satu:
 
@@ -440,9 +442,9 @@ Keputusan ini harus dipertegas sebelum production hardening lebih lanjut.
 
 ### Acceptance Criteria
 
-- Semua flow MVP utama dapat dijalankan end-to-end.
-- Certificate flow sesuai definisi MVP.
-- Auth flow tidak punya blind spot utama.
+- Semua flow MVP utama tervalidasi di environment target.
+- Certificate flow tetap sesuai definisi MVP tanpa regression.
+- Auth flow tidak punya blind spot utama sebelum hardening lanjutan.
 
 ---
 
@@ -648,7 +650,7 @@ Keputusan ini harus dipertegas sebelum production hardening lebih lanjut.
 ### Hari 1–30
 
 - Phase 0 — Reconcile baseline
-- Phase 1 — Close MVP gaps
+- Phase 1 — Validate completed MVP flows
 - Phase 2 — Security hardening
 
 ### Hari 31–60
@@ -687,20 +689,22 @@ Platform dapat dianggap production-ready jika seluruh poin berikut terpenuhi:
 
 Urutan kerja yang paling disarankan dari kondisi repo saat ini:
 
-1. **Tutup blocker yang masih menghalangi status MVP done**
+1. **Validasi MVP yang sudah selesai di environment target**
    - validasi email verification end-to-end,
    - validasi password reset end-to-end,
    - validasi OAuth provider nyata,
    - validasi auto-certificate dengan data nyata,
-   - rapikan dashboard/enrollment model jika memang dibutuhkan untuk definisi MVP.
+   - audit kecil dashboard/enrollment model untuk mencegah drift requirement.
 
-2. **Jadikan readiness gate minimum benar-benar executable**
-   - selesaikan baseline `typecheck`,
+2. **Perdalam readiness gate minimum yang sudah mulai executable**
+   - pertahankan baseline `typecheck` tetap hijau,
    - tambah E2E journey utama,
    - definisikan lint/type/build/test sebagai gate yang konsisten.
 
-3. **Hilangkan risiko logic ganda pada XP**
-   - pilih satu sumber kebenaran antara API route dan PocketBase hook.
+3. **Lanjutkan validasi integritas write path sensitif**
+   - hook PocketBase sekarang jadi sumber sinkronisasi XP,
+   - pertahankan kontrak response `xp` yang konsisten lintas endpoint,
+   - tambah coverage untuk idempotency dan lock recovery.
 
 4. **Siapkan CI dan staging baseline**
    - tambahkan workflow CI,

@@ -11,7 +11,7 @@ interface QuizQuestion {
 interface QuizResult {
     questionId: string;
     isCorrect: boolean;
-    correctIndex: number;
+    selectedIndex: number;
     explanation: string | null;
 }
 
@@ -20,6 +20,11 @@ interface SubmitResponse {
     passed: boolean;
     results: QuizResult[];
     attempts: number;
+    xp: {
+        awarded: number | null;
+        source: 'already_completed' | 'pocketbase_hook_pending';
+    };
+    reviewAvailable: boolean;
 }
 
 type QuizState = 'loading' | 'ready' | 'in_progress' | 'submitting' | 'result';
@@ -145,55 +150,70 @@ export default function QuizEngine({ lessonId, lessonTitle, passingScore, maxAtt
                     </p>
                     <p className="text-sm text-[var(--color-muted)]">
                         Skor minimum: {passingScore}% · Percobaan: {result.attempts}
-                        {result.passed && result.score === 100 && ' · 🌟 Perfect Score! Double XP!'}
+                        {result.passed && result.score === 100 && result.xp.source !== 'already_completed' && ' · 🌟 Perfect Score! Double XP!'}
                     </p>
+                    {result.passed && result.xp.source === 'pocketbase_hook_pending' && (
+                        <p className="text-sm font-medium mt-3 text-[var(--color-primary)]">
+                            XP untuk kelulusan quiz akan disinkronkan oleh sistem.
+                        </p>
+                    )}
                 </div>
 
                 {/* Review */}
-                <h3 className="text-lg font-bold text-[var(--color-text)] mb-4">Review Jawaban</h3>
-                <div className="space-y-4">
-                    {questions.map((q, i) => {
-                        const r = result.results[i];
-                        return (
-                            <div key={q.id} className="rounded-xl border p-5" style={{
-                                borderColor: r.isCorrect ? 'rgba(0,255,136,0.3)' : 'rgba(239,68,68,0.3)',
-                                backgroundColor: 'var(--color-surface)',
-                            }}>
-                                <div className="flex items-start gap-3 mb-3">
-                                    <span className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0" style={{
-                                        backgroundColor: r.isCorrect ? 'var(--color-primary)' : 'var(--color-danger)',
-                                        color: 'var(--color-bg)',
+                {result.reviewAvailable ? (
+                    <>
+                        <h3 className="text-lg font-bold text-[var(--color-text)] mb-4">Review Jawaban</h3>
+                        <div className="space-y-4">
+                            {questions.map((q, i) => {
+                                const r = result.results[i];
+                                return (
+                                    <div key={q.id} className="rounded-xl border p-5" style={{
+                                        borderColor: r.isCorrect ? 'rgba(0,255,136,0.3)' : 'rgba(239,68,68,0.3)',
+                                        backgroundColor: 'var(--color-surface)',
                                     }}>
-                                        {r.isCorrect ? '✓' : '✗'}
-                                    </span>
-                                    <p className="text-sm font-medium text-[var(--color-text)]">{q.question}</p>
-                                </div>
-                                <div className="space-y-1.5 ml-9">
-                                    {q.options.map((opt, j) => {
-                                        const isSelected = answers[i] === j;
-                                        const isCorrectOpt = j === r.correctIndex;
-                                        let style: React.CSSProperties = { backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' };
-                                        if (isCorrectOpt) style = { backgroundColor: 'rgba(0,255,136,0.1)', borderColor: 'var(--color-primary)' };
-                                        else if (isSelected && !r.isCorrect) style = { backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'var(--color-danger)' };
-                                        return (
-                                            <div key={j} className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm" style={style}>
-                                                <span style={{ color: isCorrectOpt ? 'var(--color-primary)' : isSelected ? 'var(--color-danger)' : 'var(--color-muted)' }}>
-                                                    {isCorrectOpt ? '✓' : isSelected ? '✗' : '○'}
-                                                </span>
-                                                <span className="text-[var(--color-text)]">{opt.text}</span>
+                                        <div className="flex items-start gap-3 mb-3">
+                                            <span className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0" style={{
+                                                backgroundColor: r.isCorrect ? 'var(--color-primary)' : 'var(--color-danger)',
+                                                color: 'var(--color-bg)',
+                                            }}>
+                                                {r.isCorrect ? '✓' : '✗'}
+                                            </span>
+                                            <p className="text-sm font-medium text-[var(--color-text)]">{q.question}</p>
+                                        </div>
+                                        <div className="space-y-1.5 ml-9">
+                                            {q.options.map((opt, j) => {
+                                                const isSelected = r.selectedIndex === j;
+                                                let style: React.CSSProperties = { backgroundColor: 'var(--color-bg)', borderColor: 'var(--color-border)' };
+                                                if (isSelected && r.isCorrect) style = { backgroundColor: 'rgba(0,255,136,0.1)', borderColor: 'var(--color-primary)' };
+                                                else if (isSelected && !r.isCorrect) style = { backgroundColor: 'rgba(239,68,68,0.1)', borderColor: 'var(--color-danger)' };
+                                                return (
+                                                    <div key={j} className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm" style={style}>
+                                                        <span style={{ color: isSelected ? (r.isCorrect ? 'var(--color-primary)' : 'var(--color-danger)') : 'var(--color-muted)' }}>
+                                                            {isSelected ? (r.isCorrect ? '✓' : '✗') : '○'}
+                                                        </span>
+                                                        <span className="text-[var(--color-text)]">{opt.text}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        {r.explanation && (
+                                            <div className="ml-9 mt-3 px-3 py-2 rounded-lg text-xs text-[var(--color-text-secondary)]" style={{ backgroundColor: 'var(--color-surface-alt)' }}>
+                                                💡 {r.isCorrect ? r.explanation : `Jawabanmu belum tepat. ${r.explanation}`}
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                                {r.explanation && (
-                                    <div className="ml-9 mt-3 px-3 py-2 rounded-lg text-xs text-[var(--color-text-secondary)]" style={{ backgroundColor: 'var(--color-surface-alt)' }}>
-                                        💡 {r.explanation}
+                                        )}
                                     </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
+                                );
+                            })}
+                        </div>
+                    </>
+                ) : (
+                    <div className="rounded-xl border p-5 mb-6" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
+                        <h3 className="text-lg font-bold text-[var(--color-text)] mb-2">Review dikunci sementara</h3>
+                        <p className="text-sm text-[var(--color-muted)]">
+                            Untuk mencegah brute-force jawaban, detail koreksi baru akan ditampilkan setelah kamu lulus atau menghabiskan seluruh percobaan yang tersedia.
+                        </p>
+                    </div>
+                )}
 
                 {/* Actions */}
                 <div className="flex items-center gap-3 mt-8">
