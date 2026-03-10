@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 
+import { isTrustedAdminUser } from '../../../../lib/admin/adminAuth';
 import { createTrustedPocketBase, getPocketBaseUrl } from '../../../../lib/pocketbase';
 import { isValidPocketBaseId } from '../../../../lib/validation';
 
@@ -30,7 +31,7 @@ export const GET: APIRoute = async ({ locals, params }) => {
         });
 
         const isOwner = certificate.user === locals.user.id;
-        const isAdmin = locals.user.role === 'admin';
+        const isAdmin = isTrustedAdminUser(locals.user);
         if (!isOwner && !isAdmin) {
             return jsonError(403, 'Forbidden');
         }

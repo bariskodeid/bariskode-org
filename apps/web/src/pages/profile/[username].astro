@@ -1,5 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import { isTrustedAdminUser } from "../../lib/admin/adminAuth";
+import { isValidUsername } from "../../lib/validation";
 
 const { username } = Astro.params;
 const { pb, user } = Astro.locals;
@@ -10,13 +12,17 @@ let courseCount = 0;
 let error = false;
 
 try {
-  profile = await pb.collection("users").getFirstListItem(`username = '${username}'`);
+  if (isValidUsername(username)) {
+    profile = await pb.collection("users").getFirstListItem(`username = '${username}'`);
+  } else {
+    error = true;
+  }
 } catch {
   error = true;
 }
 
 if (profile) {
-  const canViewCertificates = user?.id === profile.id || user?.role === "admin";
+  const canViewCertificates = user?.id === profile.id || isTrustedAdminUser(user);
 
   if (canViewCertificates) {
     try {
@@ -168,7 +174,7 @@ const joinDate = profile?.created
           </section>
         )}
 
-        {certificates.length === 0 && (user?.id === profile.id || user?.role === "admin") && (
+        {certificates.length === 0 && (user?.id === profile.id || isTrustedAdminUser(user)) && (
           <div class="text-center py-12 rounded-xl border border-[var(--color-border)]"
                style="background-color: var(--color-surface);">
             <div class="text-3xl mb-3">🎓</div>

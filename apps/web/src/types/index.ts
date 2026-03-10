@@ -1,9 +1,30 @@
+export type UserRole = 'student' | 'instructor' | 'admin';
+
+export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
+
+export type CourseStatus = 'draft' | 'published';
+
+export type LessonType = 'reading' | 'video' | 'quiz' | 'coding';
+
+export type LessonStatus = 'draft' | 'published';
+
+export type QuizQuestionType = 'multiple_choice' | 'true_false';
+
+export type AdminSectionKey = 'overview' | 'categories' | 'courses';
+
+export interface AdminNavItem {
+    key: AdminSectionKey;
+    label: string;
+    href: '/admin' | '/admin/categories' | '/admin/courses';
+    description: string;
+}
+
 export interface User {
     id: string;
     email: string;
     username: string;
     avatar?: string;
-    role: 'student' | 'instructor' | 'admin';
+    role: UserRole;
     xp: number;
     level: number;
     streak_current: number;
@@ -28,41 +49,46 @@ export interface Course {
     title: string;
     slug: string;
     description: string;
-    difficulty: 'beginner' | 'intermediate' | 'advanced';
-    status: 'draft' | 'published';
+    instructor: string;
+    category: string;
+    difficulty: DifficultyLevel;
+    status: CourseStatus;
     tags: string[];
-    estimated_hours: number;
+    estimated_hours?: number;
     total_lessons: number;
     enrolled_count: number;
     thumbnail?: string;
     expand?: {
-        instructor: User;
-        category: Category;
-        modules: Module[];
+        instructor?: User;
+        category?: Category;
+        modules?: Module[];
     };
 }
 
 export interface Module {
     id: string;
+    course: string;
     title: string;
     order: number;
     description?: string;
     expand?: {
-        lessons: Lesson[];
+        lessons?: Lesson[];
     };
 }
 
 export interface Lesson {
     id: string;
+    module?: string;
     title: string;
     slug: string;
-    type: 'reading' | 'video' | 'quiz' | 'coding';
+    type: LessonType;
     content?: string;
     video_url?: string;
     starter_code?: string;
+    expected_output?: string;
     xp_reward: number;
     order: number;
-    status: 'draft' | 'published';
+    status: LessonStatus;
     estimated_minutes?: number;
     passing_score?: number;
     max_attempts?: number;
@@ -95,7 +121,7 @@ export interface QuizQuestion {
     id: string;
     lesson: string;
     question: string;
-    type: 'multiple_choice' | 'true_false';
+    type: QuizQuestionType;
     options: { text: string; is_correct: boolean }[];
     explanation?: string;
     order: number;

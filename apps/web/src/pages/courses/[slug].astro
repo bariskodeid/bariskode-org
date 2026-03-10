@@ -127,7 +127,7 @@ const thumbnailUrl = course.thumbnail
               <span>{instructor.username}</span>
             </div>
           )}
-          {course.estimated_hours > 0 && (
+          {(course.estimated_hours ?? 0) > 0 && (
             <span class="flex items-center gap-1.5">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
               {course.estimated_hours} jam
@@ -258,7 +258,7 @@ const thumbnailUrl = course.thumbnail
               <span class="text-[var(--color-muted)]">Total Lesson</span>
               <span class="text-[var(--color-text)]">{totalLessons}</span>
             </div>
-            {course.estimated_hours > 0 && (
+            {(course.estimated_hours ?? 0) > 0 && (
               <div class="flex items-center justify-between text-sm">
                 <span class="text-[var(--color-muted)]">Durasi</span>
                 <span class="text-[var(--color-text)]">~{course.estimated_hours} jam</span>

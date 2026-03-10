@@ -1,9 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { getCertificateDownloadCtaState } from './certificateDownloadAccess';
 
+const originalAdminUserIds = process.env.ADMIN_USER_IDS;
+
 describe('getCertificateDownloadCtaState', () => {
     const ownerId = 'use123def456ghi';
+
+    beforeAll(() => {
+        process.env.ADMIN_USER_IDS = 'use_admin_1';
+    });
 
     it('returns login for guests when a PDF exists', () => {
         expect(
@@ -28,11 +34,21 @@ describe('getCertificateDownloadCtaState', () => {
     it('returns download for admins', () => {
         expect(
             getCertificateDownloadCtaState({
-                user: { id: 'use999def456ghi', role: 'admin' },
+                user: { id: 'use_admin_1', role: 'admin' },
                 certificateUserId: ownerId,
                 hasFile: true,
             })
         ).toBe('download');
+    });
+
+    it('returns restricted for non-allowlisted admin-role users', () => {
+        expect(
+            getCertificateDownloadCtaState({
+                user: { id: 'use999def456ghi', role: 'admin' },
+                certificateUserId: ownerId,
+                hasFile: true,
+            })
+        ).toBe('restricted');
     });
 
     it('returns restricted for logged-in non-owners', () => {
@@ -53,5 +69,9 @@ describe('getCertificateDownloadCtaState', () => {
                 hasFile: false,
             })
         ).toBe('unavailable');
+    });
+
+    afterAll(() => {
+        process.env.ADMIN_USER_IDS = originalAdminUserIds;
     });
 });

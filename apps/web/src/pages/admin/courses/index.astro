@@ -1,0 +1,523 @@
+---
+import AdminLayout from '@components/admin/AdminLayout.astro';
+import { resolveAdminRouteAccess } from '@lib/admin/adminAccess';
+import {
+  listAdminCourseCategories,
+  listAdminCourseInstructors,
+  listAdminCourses,
+} from '@lib/admin/courseService';
+import { listAdminLessonsByModule } from '@lib/admin/lessonService';
+import { listAdminModulesByCourse } from '@lib/admin/moduleService';
+import type { Lesson } from '@/types';
+
+const access = resolveAdminRouteAccess({
+  user: Astro.locals.user,
+  currentPath: Astro.url.pathname,
+});
+
+if (access.kind === 'redirect') {
+  return Astro.redirect(access.location);
+}
+
+const [courses, categories, instructors] = await Promise.all([
+  listAdminCourses(Astro.locals.pb),
+  listAdminCourseCategories(Astro.locals.pb),
+  listAdminCourseInstructors(Astro.locals.pb),
+]);
+
+const status = Astro.url.searchParams.get('status');
+const tone = Astro.url.searchParams.get('tone');
+const editingId = Astro.url.searchParams.get('edit');
+
+const statusMessageMap: Record<string, string> = {
+  created: 'Course berhasil dibuat.',
+  updated: 'Course berhasil diperbarui.',
+  module_created: 'Module berhasil dibuat.',
+  module_updated: 'Module berhasil diperbarui.',
+  module_deleted: 'Module berhasil dihapus.',
+  module_validation_failed: 'Periksa kembali input module. Ada field yang belum valid.',
+  module_not_found: 'Module yang dipilih tidak ditemukan.',
+  lesson_created: 'Lesson berhasil dibuat.',
+  lesson_updated: 'Lesson berhasil diperbarui.',
+  lesson_deleted: 'Lesson berhasil dihapus.',
+  lesson_validation_failed: 'Periksa kembali input lesson. Ada field yang belum valid.',
+  lesson_not_found: 'Lesson yang dipilih tidak ditemukan.',
+  duplicate_slug: 'Slug course sudah digunakan. Gunakan slug yang berbeda.',
+  course_not_found: 'Course yang dipilih tidak ditemukan.',
+  category_not_found: 'Kategori yang dipilih tidak ditemukan.',
+  instructor_not_found: 'Instructor yang dipilih tidak ditemukan atau tidak valid.',
+  validation_failed: 'Periksa kembali metadata course. Ada field yang belum valid.',
+  server_error: 'Terjadi kesalahan server. Silakan coba lagi.',
+};
+
+const flashMessage = status ? statusMessageMap[status] ?? 'Terjadi perubahan status pada course.' : null;
+const expandedCourseId = editingId && courses.some((course) => course.id === editingId) ? editingId : null;
+const modulesByCourse = expandedCourseId
+  ? {
+      [expandedCourseId]: await listAdminModulesByCourse(Astro.locals.pb, expandedCourseId).catch(() => []),
+    }
+  : {};
+const lessonsByModule: Record<string, Lesson[]> = expandedCourseId
+  ? Object.fromEntries(
+      await Promise.all(
+        (modulesByCourse[expandedCourseId] ?? []).map(async (module) => {
+          const lessons = await listAdminLessonsByModule(Astro.locals.pb, expandedCourseId, module.id).catch(() => []);
+          return [module.id, lessons];
+        }),
+      ),
+    )
+  : {};
+---
+
+<AdminLayout
+  title="Admin Courses"
+  description="Kelola metadata course: title, slug, deskripsi, kategori, instructor, difficulty, status, tag, dan estimasi durasi."
+  currentPath={Astro.url.pathname}
+>
+  <div class="space-y-6">
+    {flashMessage ? (
+      <div
+        class:list={[
+          'rounded-2xl border px-4 py-3 text-sm',
+          tone === 'success'
+            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+            : 'border-red-500/30 bg-red-500/10 text-red-300',
+        ]}
+      >
+        {flashMessage}
+      </div>
+    ) : null}
+
+    <section class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 lg:p-8">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="text-xs font-mono uppercase tracking-[0.2em] text-[var(--color-primary)]">Create course</p>
+          <h2 class="mt-2 text-xl font-bold text-[var(--color-text)]">Tambah course baru</h2>
+        </div>
+        <span class="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs text-[var(--color-muted)]">
+          Metadata only
+        </span>
+      </div>
+
+      <form method="POST" action="/api/admin/courses" class="mt-6 grid gap-4 lg:grid-cols-2">
+        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+          <span class="font-medium">Judul</span>
+          <input name="title" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]" />
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+          <span class="font-medium">Slug</span>
+          <input name="slug" placeholder="opsional, akan dibuat otomatis" class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 font-mono outline-none focus:border-[var(--color-primary)]" />
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+          <span class="font-medium">Estimasi jam</span>
+          <input name="estimated_hours" type="number" min="0" step="1" class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]" />
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+          <span class="font-medium">Kategori</span>
+          <select name="category" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]">
+            <option value="">Pilih kategori</option>
+            {categories.map((category) => <option value={category.id}>{category.name}</option>)}
+          </select>
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+          <span class="font-medium">Instructor</span>
+          <select name="instructor" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]">
+            <option value="">Pilih instructor</option>
+            {instructors.map((instructor) => (
+              <option value={instructor.id}>{instructor.username} · {instructor.role}</option>
+            ))}
+          </select>
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+          <span class="font-medium">Difficulty</span>
+          <select name="difficulty" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]">
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+          <span class="font-medium">Status</span>
+          <select name="status" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]">
+            <option value="draft">Draft</option>
+            <option value="published">Published</option>
+          </select>
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+          <span class="font-medium">Tags</span>
+          <input name="tags" placeholder="contoh: web, auth, xss" class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]" />
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+          <span class="font-medium">Deskripsi</span>
+          <textarea name="description" rows="4" required class="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 outline-none focus:border-[var(--color-primary)]"></textarea>
+        </label>
+        <div class="lg:col-span-2 flex justify-end">
+          <button type="submit" class="inline-flex h-11 items-center rounded-xl bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-bg)] transition hover:opacity-90">
+            Simpan course
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 lg:p-8">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="text-xs font-mono uppercase tracking-[0.2em] text-[var(--color-primary)]">Existing courses</p>
+          <h2 class="mt-2 text-xl font-bold text-[var(--color-text)]">Daftar course</h2>
+        </div>
+        <span class="text-sm text-[var(--color-muted)]">{courses.length} course</span>
+      </div>
+
+      <div class="mt-6 space-y-4">
+        {courses.length === 0 ? (
+          <div class="rounded-xl border border-dashed border-[var(--color-border)] px-4 py-6 text-sm text-[var(--color-muted)]">
+            Belum ada course. Tambahkan course pertama untuk mulai mengisi kurikulum.
+          </div>
+        ) : courses.map((course) => (
+          <article class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 lg:p-5">
+            <div class="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <div class="flex items-center gap-3">
+                  <div>
+                    <h3 class="text-base font-semibold text-[var(--color-text)]">{course.title}</h3>
+                    <p class="text-xs font-mono text-[var(--color-muted)]">/{course.slug}</p>
+                  </div>
+                </div>
+                <p class="mt-2 text-sm text-[var(--color-muted)]">{course.description}</p>
+                <div class="mt-3 flex flex-wrap gap-2 text-xs text-[var(--color-muted)]">
+                  <span class="rounded-full border border-[var(--color-border)] px-2.5 py-1">{course.expand?.category?.name ?? 'Tanpa kategori'}</span>
+                  <span class="rounded-full border border-[var(--color-border)] px-2.5 py-1">{course.expand?.instructor?.username ?? 'Tanpa instructor'}</span>
+                  <span class="rounded-full border border-[var(--color-border)] px-2.5 py-1">{course.difficulty}</span>
+                  <span class="rounded-full border border-[var(--color-border)] px-2.5 py-1">{course.status}</span>
+                  <span class="rounded-full border border-[var(--color-border)] px-2.5 py-1">{course.estimated_hours ?? 0} jam</span>
+                </div>
+              </div>
+              <a
+                href={`/admin/courses?edit=${course.id}`}
+                class="text-sm font-medium text-[var(--color-primary)] hover:underline"
+              >
+                {editingId === course.id ? 'Sedang edit' : 'Edit'}
+              </a>
+            </div>
+
+            <form method="POST" action={`/api/admin/courses/${course.id}`} class="grid gap-4 lg:grid-cols-2">
+              <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                <span class="font-medium">Judul</span>
+                <input name="title" required value={course.title} class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]" />
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                <span class="font-medium">Slug</span>
+                <input name="slug" value={course.slug} class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 font-mono outline-none focus:border-[var(--color-primary)]" />
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                <span class="font-medium">Estimasi jam</span>
+                <input name="estimated_hours" type="number" min="0" step="1" value={course.estimated_hours ?? 0} class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]" />
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                <span class="font-medium">Kategori</span>
+                <select name="category" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]">
+                  {categories.map((category) => (
+                    <option value={category.id} selected={category.id === course.category}>{category.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                <span class="font-medium">Instructor</span>
+                <select name="instructor" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]">
+                  {instructors.map((instructor) => (
+                    <option value={instructor.id} selected={instructor.id === course.instructor}>
+                      {instructor.username} · {instructor.role}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                <span class="font-medium">Difficulty</span>
+                <select name="difficulty" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]">
+                  <option value="beginner" selected={course.difficulty === 'beginner'}>Beginner</option>
+                  <option value="intermediate" selected={course.difficulty === 'intermediate'}>Intermediate</option>
+                  <option value="advanced" selected={course.difficulty === 'advanced'}>Advanced</option>
+                </select>
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                <span class="font-medium">Status</span>
+                <select name="status" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]">
+                  <option value="draft" selected={course.status === 'draft'}>Draft</option>
+                  <option value="published" selected={course.status === 'published'}>Published</option>
+                </select>
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                <span class="font-medium">Tags</span>
+                <input name="tags" value={course.tags.join(', ')} class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]" />
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                <span class="font-medium">Deskripsi</span>
+                <textarea name="description" rows="4" class="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 outline-none focus:border-[var(--color-primary)]">{course.description}</textarea>
+              </label>
+              <div class="lg:col-span-2 flex items-center justify-end gap-3">
+                {editingId === course.id ? (
+                  <a href="/admin/courses" class="text-sm text-[var(--color-muted)] hover:text-[var(--color-text)]">Batal</a>
+                ) : null}
+                <button type="submit" class="inline-flex h-11 items-center rounded-xl bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-bg)] transition hover:opacity-90">
+                  Simpan perubahan
+                </button>
+              </div>
+            </form>
+
+            {editingId === course.id ? (
+              <section class="mt-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:p-5">
+                <div class="flex items-center justify-between gap-4">
+                  <div>
+                    <p class="text-xs font-mono uppercase tracking-[0.2em] text-[var(--color-primary)]">Course modules</p>
+                    <h4 class="mt-2 text-lg font-semibold text-[var(--color-text)]">Kelola module</h4>
+                  </div>
+                  <span class="text-sm text-[var(--color-muted)]">
+                    {(modulesByCourse[course.id] ?? []).length} module
+                  </span>
+                </div>
+
+                <form method="POST" action={`/api/admin/courses/${course.id}/modules`} class="mt-6 grid gap-4 lg:grid-cols-2">
+                  <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                    <span class="font-medium">Judul module</span>
+                    <input name="title" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                  </label>
+                  <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                    <span class="font-medium">Order</span>
+                    <input name="order" type="number" min="0" value="0" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                  </label>
+                  <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                    <span class="font-medium">Deskripsi</span>
+                    <textarea name="description" rows="3" class="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 outline-none focus:border-[var(--color-primary)]"></textarea>
+                  </label>
+                  <div class="lg:col-span-2 flex justify-end">
+                    <button type="submit" class="inline-flex h-11 items-center rounded-xl bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-bg)] transition hover:opacity-90">
+                      Simpan module
+                    </button>
+                  </div>
+                </form>
+
+                <div class="mt-6 space-y-4">
+                  {(modulesByCourse[course.id] ?? []).length === 0 ? (
+                    <div class="rounded-xl border border-dashed border-[var(--color-border)] px-4 py-6 text-sm text-[var(--color-muted)]">
+                      Belum ada module untuk course ini.
+                    </div>
+                  ) : (modulesByCourse[course.id] ?? []).map((module) => (
+                    <article class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+                      <form method="POST" action={`/api/admin/courses/${course.id}/modules/${module.id}`} class="grid gap-4 lg:grid-cols-2">
+                        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                          <span class="font-medium">Judul module</span>
+                          <input name="title" required value={module.title} class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                        </label>
+                        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                          <span class="font-medium">Order</span>
+                          <input name="order" type="number" min="0" value={module.order} required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                        </label>
+                        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                          <span class="font-medium">Deskripsi</span>
+                          <textarea name="description" rows="3" class="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 outline-none focus:border-[var(--color-primary)]">{module.description ?? ''}</textarea>
+                        </label>
+                        <div class="lg:col-span-2 flex flex-wrap items-center justify-between gap-3">
+                          <button
+                            type="submit"
+                            name="intent"
+                            value="delete"
+                          onclick="return confirm('Hapus module ini? Pastikan seluruh lesson di dalamnya sudah dihapus terlebih dahulu.')"
+                          class="inline-flex h-11 items-center rounded-xl border border-red-500/30 px-4 text-sm font-medium text-red-300 transition hover:bg-red-500/10"
+                        >
+                          Hapus
+                          </button>
+                          <button type="submit" class="inline-flex h-11 items-center rounded-xl bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-bg)] transition hover:opacity-90">
+                            Simpan module
+                          </button>
+                        </div>
+                      </form>
+
+                      <section class="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+                        <div class="flex items-center justify-between gap-4">
+                          <div>
+                            <p class="text-xs font-mono uppercase tracking-[0.2em] text-[var(--color-primary)]">Module lessons</p>
+                            <h5 class="mt-2 text-base font-semibold text-[var(--color-text)]">Kelola lesson</h5>
+                          </div>
+                          <span class="text-sm text-[var(--color-muted)]">
+                            {(lessonsByModule[module.id] ?? []).length} lesson
+                          </span>
+                        </div>
+
+                        <form method="POST" action={`/api/admin/courses/${course.id}/modules/${module.id}/lessons`} class="mt-6 grid gap-4 lg:grid-cols-2">
+                          <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                            <span class="font-medium">Judul lesson</span>
+                            <input name="title" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                          </label>
+                          <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                            <span class="font-medium">Slug</span>
+                            <input name="slug" placeholder="opsional, akan dibuat otomatis" class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 font-mono outline-none focus:border-[var(--color-primary)]" />
+                          </label>
+                          <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                            <span class="font-medium">Tipe</span>
+                            <select name="type" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]">
+                              <option value="reading">Reading</option>
+                              <option value="video">Video</option>
+                              <option value="quiz">Quiz</option>
+                              <option value="coding">Coding</option>
+                            </select>
+                          </label>
+                          <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                            <span class="font-medium">XP reward</span>
+                            <input name="xp_reward" type="number" min="0" value="0" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                          </label>
+                          <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                            <span class="font-medium">Order</span>
+                            <input name="order" type="number" min="0" value="0" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                          </label>
+                          <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                            <span class="font-medium">Status</span>
+                            <select name="status" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]">
+                              <option value="draft">Draft</option>
+                              <option value="published">Published</option>
+                            </select>
+                          </label>
+                          <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                            <span class="font-medium">Estimasi menit</span>
+                            <input name="estimated_minutes" type="number" min="0" class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                          </label>
+                          <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                            <span class="font-medium">Passing score</span>
+                            <input name="passing_score" type="number" min="0" max="100" class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                          </label>
+                          <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                            <span class="font-medium">Max attempts</span>
+                            <input name="max_attempts" type="number" min="0" class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                          </label>
+                          <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                            <span class="font-medium">Content</span>
+                            <textarea name="content" rows="5" class="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 outline-none focus:border-[var(--color-primary)]"></textarea>
+                          </label>
+                          <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                            <span class="font-medium">Video URL</span>
+                            <input name="video_url" type="url" class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                          </label>
+                          <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                            <span class="font-medium">Starter code</span>
+                            <textarea name="starter_code" rows="5" class="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 font-mono outline-none focus:border-[var(--color-primary)]"></textarea>
+                          </label>
+                          <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                            <span class="font-medium">Expected output</span>
+                            <textarea name="expected_output" rows="3" class="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 font-mono outline-none focus:border-[var(--color-primary)]"></textarea>
+                          </label>
+                          <div class="lg:col-span-2 flex justify-end">
+                            <button type="submit" class="inline-flex h-11 items-center rounded-xl bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-bg)] transition hover:opacity-90">
+                              Simpan lesson
+                            </button>
+                          </div>
+                          <p class="lg:col-span-2 text-xs text-[var(--color-muted)]">
+                            Published reading wajib punya content, video wajib punya URL video, coding wajib punya starter code + expected output, dan quiz tetap draft sampai builder soal tersedia.
+                          </p>
+                        </form>
+
+                        <div class="mt-6 space-y-4">
+                          {(lessonsByModule[module.id] ?? []).length === 0 ? (
+                            <div class="rounded-xl border border-dashed border-[var(--color-border)] px-4 py-6 text-sm text-[var(--color-muted)]">
+                              Belum ada lesson untuk module ini.
+                            </div>
+                          ) : (lessonsByModule[module.id] ?? []).map((lesson) => (
+                            <article class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+                              <form method="POST" action={`/api/admin/courses/${course.id}/modules/${module.id}/lessons/${lesson.id}`} class="grid gap-4 lg:grid-cols-2">
+                                <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                                  <span class="font-medium">Judul lesson</span>
+                                  <input name="title" required value={lesson.title} class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                                </label>
+                                <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                                  <span class="font-medium">Slug</span>
+                                  <input name="slug" value={lesson.slug} class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 font-mono outline-none focus:border-[var(--color-primary)]" />
+                                </label>
+                                <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                                  <span class="font-medium">Tipe</span>
+                                  <select name="type" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]">
+                                    <option value="reading" selected={lesson.type === 'reading'}>Reading</option>
+                                    <option value="video" selected={lesson.type === 'video'}>Video</option>
+                                    <option value="quiz" selected={lesson.type === 'quiz'}>Quiz</option>
+                                    <option value="coding" selected={lesson.type === 'coding'}>Coding</option>
+                                  </select>
+                                </label>
+                                <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                                  <span class="font-medium">XP reward</span>
+                                  <input name="xp_reward" type="number" min="0" value={lesson.xp_reward} required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                                </label>
+                                <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                                  <span class="font-medium">Order</span>
+                                  <input name="order" type="number" min="0" value={lesson.order} required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                                </label>
+                                <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                                  <span class="font-medium">Status</span>
+                                  <select name="status" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]">
+                                    <option value="draft" selected={lesson.status === 'draft'}>Draft</option>
+                                    <option value="published" selected={lesson.status === 'published'}>Published</option>
+                                  </select>
+                                </label>
+                                <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                                  <span class="font-medium">Estimasi menit</span>
+                                  <input name="estimated_minutes" type="number" min="0" value={lesson.estimated_minutes ?? ''} class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                                </label>
+                                <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                                  <span class="font-medium">Passing score</span>
+                                  <input name="passing_score" type="number" min="0" max="100" value={lesson.passing_score ?? ''} class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                                </label>
+                                <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                                  <span class="font-medium">Max attempts</span>
+                                  <input name="max_attempts" type="number" min="0" value={lesson.max_attempts ?? ''} class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                                </label>
+                                <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                                  <span class="font-medium">Content</span>
+                                  <textarea name="content" rows="5" class="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 outline-none focus:border-[var(--color-primary)]">{lesson.content ?? ''}</textarea>
+                                </label>
+                                <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                                  <span class="font-medium">Video URL</span>
+                                  <input name="video_url" type="url" value={lesson.video_url ?? ''} class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]" />
+                                </label>
+                                <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                                  <span class="font-medium">Starter code</span>
+                                  <textarea name="starter_code" rows="5" class="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 font-mono outline-none focus:border-[var(--color-primary)]">{lesson.starter_code ?? ''}</textarea>
+                                </label>
+                                <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                                  <span class="font-medium">Expected output</span>
+                                  <textarea name="expected_output" rows="3" class="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 font-mono outline-none focus:border-[var(--color-primary)]">{lesson.expected_output ?? ''}</textarea>
+                                </label>
+                                <div class="lg:col-span-2 flex flex-wrap items-center justify-between gap-3">
+                                  <div class="flex flex-wrap gap-2 text-xs text-[var(--color-muted)]">
+                                    <span class="rounded-full border border-[var(--color-border)] px-2.5 py-1">{lesson.type}</span>
+                                    <span class="rounded-full border border-[var(--color-border)] px-2.5 py-1">{lesson.status}</span>
+                                  </div>
+                                  <div class="flex flex-wrap items-center gap-3">
+                                    <button
+                                      type="submit"
+                                      name="intent"
+                                      value="delete"
+                                      onclick="return confirm('Hapus lesson ini? Urutan lesson akan berubah untuk learner flow.')"
+                                      class="inline-flex h-11 items-center rounded-xl border border-red-500/30 px-4 text-sm font-medium text-red-300 transition hover:bg-red-500/10"
+                                    >
+                                      Hapus
+                                    </button>
+                                    <button type="submit" class="inline-flex h-11 items-center rounded-xl bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-bg)] transition hover:opacity-90">
+                                      Simpan lesson
+                                    </button>
+                                  </div>
+                                </div>
+                                <p class="lg:col-span-2 text-xs text-[var(--color-muted)]">
+                                  Published reading wajib punya content, video wajib punya URL video, coding wajib punya starter code + expected output, dan quiz tetap draft sampai builder soal tersedia.
+                                </p>
+                              </form>
+                            </article>
+                          ))}
+                        </div>
+                      </section>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+          </article>
+        ))}
+      </div>
+    </section>
+  </div>
+</AdminLayout>

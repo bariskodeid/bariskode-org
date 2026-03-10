@@ -1,5 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { createPocketBase } from '@lib/pocketbase';
+import { isTrustedAdminUser } from '@lib/admin/adminAuth';
 
 // Routes that require authentication
 const PROTECTED_ROUTES = ['/dashboard', '/learn', '/quiz', '/admin'];
@@ -49,7 +50,7 @@ export const onRequest = defineMiddleware(async ({ locals, request, redirect, ur
 
     // Admin-only routes
     const isAdminRoute = ADMIN_ROUTES.some((r) => path.startsWith(r));
-    if (isAdminRoute && locals.user?.role !== 'admin') {
+    if (isAdminRoute && !isTrustedAdminUser(locals.user)) {
         return redirect('/403');
     }
 

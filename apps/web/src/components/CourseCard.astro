@@ -88,7 +88,7 @@ const thumbnailUrl = course.thumbnail
         <!-- Meta -->
         <div class="flex items-center gap-4 text-xs text-[var(--color-muted)]">
             {
-                course.estimated_hours > 0 && (
+                (course.estimated_hours ?? 0) > 0 && (
                     <span class="flex items-center gap-1">
                         <svg
                             class="w-3.5 h-3.5"

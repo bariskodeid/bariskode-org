@@ -1,0 +1,47 @@
+---
+import { getAdminNavItems } from '@lib/admin/adminAccess';
+
+interface Props {
+  currentPath: string;
+}
+
+const { currentPath } = Astro.props;
+const navItems = getAdminNavItems(currentPath);
+---
+
+<aside class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 lg:p-5">
+  <div class="mb-5">
+    <p class="text-xs font-mono uppercase tracking-[0.2em] text-[var(--color-primary)]">
+      Admin Panel
+    </p>
+    <h2 class="mt-2 text-lg font-bold text-[var(--color-text)]">Content Management</h2>
+    <p class="mt-1 text-sm text-[var(--color-muted)]">
+      Phase 0–1 menyiapkan pondasi admin, navigasi, dan shell untuk workflow konten.
+    </p>
+  </div>
+
+  <nav aria-label="Admin navigation" class="space-y-2">
+    {navItems.map((item) => (
+      <a
+        href={item.href}
+        aria-current={item.isActive ? 'page' : undefined}
+        class:list={[
+          'block rounded-xl border px-4 py-3 transition-all no-underline',
+          item.isActive
+            ? 'border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_10%,transparent)]'
+            : 'border-[var(--color-border)] hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-bg)]',
+        ]}
+      >
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-sm font-semibold text-[var(--color-text)]">{item.label}</span>
+          {item.isActive ? (
+            <span class="text-[10px] font-mono uppercase tracking-wide text-[var(--color-primary)]">
+              Active
+            </span>
+          ) : null}
+        </div>
+        <p class="mt-1 text-xs text-[var(--color-muted)]">{item.description}</p>
+      </a>
+    ))}
+  </nav>
+</aside>

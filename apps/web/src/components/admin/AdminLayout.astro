@@ -1,0 +1,36 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import AdminSidebar from './AdminSidebar.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  currentPath: string;
+}
+
+const { title, description = 'Area admin Bariskode untuk mengelola struktur konten pembelajaran.', currentPath } = Astro.props;
+---
+
+<BaseLayout title={title} description={description}>
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-10">
+    <div class="mb-8 flex flex-col gap-3 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 lg:p-8">
+      <div class="flex items-center gap-2 text-xs font-mono uppercase tracking-[0.25em] text-[var(--color-primary)]">
+        <span class="inline-block h-2 w-2 rounded-full bg-[var(--color-primary)]"></span>
+        Admin Workspace
+      </div>
+      <h1 class="text-3xl font-black tracking-tight text-[var(--color-text)] lg:text-4xl">
+        {title}
+      </h1>
+      <p class="max-w-3xl text-sm leading-6 text-[var(--color-muted)] lg:text-base">
+        {description}
+      </p>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+      <AdminSidebar currentPath={currentPath} />
+      <div class="min-w-0">
+        <slot />
+      </div>
+    </div>
+  </section>
+</BaseLayout>

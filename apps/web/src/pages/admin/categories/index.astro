@@ -1,0 +1,178 @@
+---
+import AdminLayout from '@components/admin/AdminLayout.astro';
+import { resolveAdminRouteAccess } from '@lib/admin/adminAccess';
+import { listAdminCategories } from '@lib/admin/categoryService';
+
+const access = resolveAdminRouteAccess({
+  user: Astro.locals.user,
+  currentPath: Astro.url.pathname,
+});
+
+if (access.kind === 'redirect') {
+  return Astro.redirect(access.location);
+}
+
+const categories = await listAdminCategories(Astro.locals.pb);
+const status = Astro.url.searchParams.get('status');
+const tone = Astro.url.searchParams.get('tone');
+const editingId = Astro.url.searchParams.get('edit');
+
+const statusMessageMap: Record<string, string> = {
+  created: 'Kategori berhasil dibuat.',
+  updated: 'Kategori berhasil diperbarui.',
+  deleted: 'Kategori berhasil dihapus.',
+  duplicate_slug: 'Slug kategori sudah digunakan. Gunakan slug yang berbeda.',
+  category_in_use: 'Kategori masih dipakai oleh course dan tidak bisa dihapus.',
+  category_not_found: 'Kategori yang dipilih tidak ditemukan.',
+  validation_failed: 'Periksa kembali input kategori. Ada field yang belum valid.',
+  server_error: 'Terjadi kesalahan server. Silakan coba lagi.',
+};
+
+const flashMessage = status ? statusMessageMap[status] ?? 'Terjadi perubahan status pada kategori.' : null;
+---
+
+<AdminLayout
+  title="Admin Categories"
+  description="Kelola kategori course dari satu tempat. Fase ini sudah mendukung create, edit, dan delete dengan guard server-side."
+  currentPath={Astro.url.pathname}
+>
+  <div class="space-y-6">
+    {flashMessage ? (
+      <div
+        class:list={[
+          'rounded-2xl border px-4 py-3 text-sm',
+          tone === 'success'
+            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+            : 'border-red-500/30 bg-red-500/10 text-red-300',
+        ]}
+      >
+        {flashMessage}
+      </div>
+    ) : null}
+
+    <section class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 lg:p-8">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="text-xs font-mono uppercase tracking-[0.2em] text-[var(--color-primary)]">Create category</p>
+          <h2 class="mt-2 text-xl font-bold text-[var(--color-text)]">Tambah kategori baru</h2>
+        </div>
+        <span class="rounded-full border border-[var(--color-border)] px-3 py-1 text-xs text-[var(--color-muted)]">
+          Admin only
+        </span>
+      </div>
+
+      <form method="POST" action="/api/admin/categories" class="mt-6 grid gap-4 lg:grid-cols-2">
+        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+          <span class="font-medium">Nama</span>
+          <input name="name" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]" />
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+          <span class="font-medium">Slug</span>
+          <input name="slug" placeholder="opsional, akan dibuat otomatis" class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 font-mono outline-none focus:border-[var(--color-primary)]" />
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+          <span class="font-medium">Icon</span>
+          <input name="icon" placeholder="Contoh: 🌐" class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]" />
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+          <span class="font-medium">Order</span>
+          <input name="order" type="number" min="0" value="0" required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 outline-none focus:border-[var(--color-primary)]" />
+        </label>
+        <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+          <span class="font-medium">Deskripsi</span>
+          <textarea name="description" rows="3" class="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg)] px-4 py-3 outline-none focus:border-[var(--color-primary)]"></textarea>
+        </label>
+        <div class="lg:col-span-2 flex justify-end">
+          <button type="submit" class="inline-flex h-11 items-center rounded-xl bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-bg)] transition hover:opacity-90">
+            Simpan kategori
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 lg:p-8">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="text-xs font-mono uppercase tracking-[0.2em] text-[var(--color-primary)]">Existing categories</p>
+          <h2 class="mt-2 text-xl font-bold text-[var(--color-text)]">Daftar kategori</h2>
+        </div>
+        <span class="text-sm text-[var(--color-muted)]">{categories.length} kategori</span>
+      </div>
+
+      <div class="mt-6 space-y-4">
+        {categories.length === 0 ? (
+          <div class="rounded-xl border border-dashed border-[var(--color-border)] px-4 py-6 text-sm text-[var(--color-muted)]">
+            Belum ada kategori. Tambahkan kategori pertama untuk mulai menyusun course.
+          </div>
+        ) : categories.map((category) => (
+          <article class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 lg:p-5">
+            <div class="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <div class="flex items-center gap-3">
+                  <span class="text-xl">{category.icon ?? '📁'}</span>
+                  <div>
+                    <h3 class="text-base font-semibold text-[var(--color-text)]">{category.name}</h3>
+                    <p class="text-xs font-mono text-[var(--color-muted)]">/{category.slug}</p>
+                  </div>
+                </div>
+                {category.description ? (
+                  <p class="mt-2 text-sm text-[var(--color-muted)]">{category.description}</p>
+                ) : null}
+              </div>
+              <a
+                href={`/admin/categories?edit=${category.id}`}
+                class="text-sm font-medium text-[var(--color-primary)] hover:underline"
+              >
+                {editingId === category.id ? 'Sedang edit' : 'Edit'}
+              </a>
+            </div>
+
+            <div class="grid gap-4 lg:grid-cols-2">
+              <form method="POST" action={`/api/admin/categories/${category.id}`} class="contents">
+              <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                <span class="font-medium">Nama</span>
+                <input name="name" required value={category.name} class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]" />
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                <span class="font-medium">Slug</span>
+                <input name="slug" value={category.slug} class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 font-mono outline-none focus:border-[var(--color-primary)]" />
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                <span class="font-medium">Icon</span>
+                <input name="icon" value={category.icon ?? ''} class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]" />
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)]">
+                <span class="font-medium">Order</span>
+                <input name="order" type="number" min="0" value={category.order} required class="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 outline-none focus:border-[var(--color-primary)]" />
+              </label>
+              <label class="flex flex-col gap-1.5 text-sm text-[var(--color-text)] lg:col-span-2">
+                <span class="font-medium">Deskripsi</span>
+                <textarea name="description" rows="3" class="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 outline-none focus:border-[var(--color-primary)]">{category.description ?? ''}</textarea>
+              </label>
+              <div class="lg:col-span-2 flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="submit"
+                  formmethod="POST"
+                  formaction={`/api/admin/categories/${category.id}/delete`}
+                  onclick="return confirm('Hapus kategori ini? Course yang masih memakai kategori ini harus dipindahkan dulu.')"
+                  class="inline-flex h-11 items-center rounded-xl border border-red-500/30 px-4 text-sm font-medium text-red-300 transition hover:bg-red-500/10"
+                >
+                  Hapus
+                </button>
+                <div class="flex items-center gap-3">
+                  {editingId === category.id ? (
+                    <a href="/admin/categories" class="text-sm text-[var(--color-muted)] hover:text-[var(--color-text)]">Batal</a>
+                  ) : null}
+                  <button type="submit" class="inline-flex h-11 items-center rounded-xl bg-[var(--color-primary)] px-5 text-sm font-semibold text-[var(--color-bg)] transition hover:opacity-90">
+                    Simpan perubahan
+                  </button>
+                </div>
+              </div>
+              </form>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  </div>
+</AdminLayout>

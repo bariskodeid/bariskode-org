@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const pocketbaseMocks = vi.hoisted(() => ({
     createTrustedPocketBase: vi.fn(),
@@ -12,13 +12,23 @@ vi.mock('../../../../lib/pocketbase', () => ({
 
 import { GET } from './download';
 
+const originalAdminUserIds = process.env.ADMIN_USER_IDS;
+
 describe('GET /api/certificates/[certId]/download', () => {
     const certId = 'cer123def456ghi';
     const ownerId = 'use123def456ghi';
 
+    beforeAll(() => {
+        process.env.ADMIN_USER_IDS = 'use_admin_1';
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
         vi.unstubAllGlobals();
+    });
+
+    afterAll(() => {
+        process.env.ADMIN_USER_IDS = originalAdminUserIds;
     });
 
     it('returns 401 for unauthenticated requests', async () => {
@@ -69,6 +79,60 @@ describe('GET /api/certificates/[certId]/download', () => {
         await expect(response.json()).resolves.toEqual({ error: 'Forbidden' });
         expect(response.headers.get('Cache-Control')).toBe('private, no-store');
         expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('returns 403 for non-allowlisted admin-role users', async () => {
+        const getOne = vi.fn().mockResolvedValue({
+            id: certId,
+            user: ownerId,
+            file: 'certificate.pdf',
+            is_valid: true,
+        });
+        pocketbaseMocks.createTrustedPocketBase.mockResolvedValue({
+            collection: vi.fn(() => ({ getOne })),
+            authStore: { token: 'admin-token' },
+        });
+
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+
+        const response = await GET({
+            locals: { user: { id: 'use999def456ghi', role: 'admin' } },
+            params: { certId },
+        } as never);
+
+        expect(response.status).toBe(403);
+        await expect(response.json()).resolves.toEqual({ error: 'Forbidden' });
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('allows trusted admins to download other user certificates', async () => {
+        const getOne = vi.fn().mockResolvedValue({
+            id: certId,
+            user: ownerId,
+            file: 'certificate.pdf',
+            is_valid: true,
+        });
+        pocketbaseMocks.createTrustedPocketBase.mockResolvedValue({
+            collection: vi.fn(() => ({ getOne })),
+            authStore: { token: 'admin-token' },
+        });
+
+        const fetchMock = vi.fn().mockResolvedValue(
+            new Response('pdf-content', {
+                status: 200,
+                headers: { 'Content-Type': 'application/pdf' },
+            })
+        );
+        vi.stubGlobal('fetch', fetchMock);
+
+        const response = await GET({
+            locals: { user: { id: 'use_admin_1', role: 'admin' } },
+            params: { certId },
+        } as never);
+
+        expect(response.status).toBe(200);
+        await expect(response.text()).resolves.toBe('pdf-content');
     });
 
     it('returns 404 when the certificate file is missing', async () => {

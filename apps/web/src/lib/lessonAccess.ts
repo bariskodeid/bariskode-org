@@ -1,6 +1,7 @@
 import type PocketBase from 'pocketbase';
 
 import type { User } from '../types';
+import { isTrustedAdminUser } from './admin/adminAuth';
 import { isValidPocketBaseId } from './validation';
 
 interface LessonRecord {
@@ -84,7 +85,7 @@ export async function assertUserCanAccessLesson(
         fields: 'id,instructor,slug,status',
     });
 
-    const isAdmin = user.role === 'admin';
+    const isAdmin = isTrustedAdminUser(user);
     const isInstructorOwner = user.role === 'instructor' && course.instructor === user.id;
     const canAccessDraft = isAdmin || isInstructorOwner;
 
