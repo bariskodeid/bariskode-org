@@ -10,12 +10,12 @@ export type LessonStatus = 'draft' | 'published';
 
 export type QuizQuestionType = 'multiple_choice' | 'true_false';
 
-export type AdminSectionKey = 'overview' | 'categories' | 'courses';
+export type AdminSectionKey = 'overview' | 'categories' | 'courses' | 'comments';
 
 export interface AdminNavItem {
     key: AdminSectionKey;
     label: string;
-    href: '/admin' | '/admin/categories' | '/admin/courses';
+    href: '/admin' | '/admin/categories' | '/admin/courses' | '/admin/comments';
     description: string;
 }
 
@@ -171,5 +171,6 @@ export interface Comment {
     updated: string;
     expand?: {
         user: User;
+        lesson?: Pick<Lesson, 'id' | 'title'>;
     };
 }

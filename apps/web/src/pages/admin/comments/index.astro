@@ -1,0 +1,196 @@
+---
+import AdminLayout from '@components/admin/AdminLayout.astro';
+import { resolveAdminRouteAccess } from '@lib/admin/adminAccess';
+import { listAdminComments } from '@lib/admin/commentAdminService';
+import {
+  buildCommentsPageHref,
+  clampAdminCommentsPage,
+  parsePositivePage,
+} from '@lib/admin/commentAdminPagination';
+import { createTrustedPocketBase } from '@lib/pocketbase';
+import type { AdminCommentRow } from '@lib/admin/commentAdminService';
+
+const COMMENTS_PER_PAGE = 20;
+
+const access = resolveAdminRouteAccess({
+  user: Astro.locals.user,
+  currentPath: Astro.url.pathname,
+});
+
+if (access.kind === 'redirect') {
+  return Astro.redirect(access.location);
+}
+
+let comments: AdminCommentRow[] = [];
+let loadError = false;
+const requestedPage = parsePositivePage(Astro.url.searchParams.get('page'));
+let currentPage = requestedPage;
+let totalItems = 0;
+let totalPages = 1;
+
+try {
+  const trustedPb = await createTrustedPocketBase();
+  const commentList = await listAdminComments(trustedPb, requestedPage, COMMENTS_PER_PAGE);
+  const safePage = clampAdminCommentsPage(requestedPage, commentList.totalPages);
+
+  if (safePage !== requestedPage) {
+    return Astro.redirect(buildCommentsPageHref(safePage, Astro.url.searchParams));
+  }
+
+  comments = commentList.items;
+  currentPage = safePage;
+  totalItems = commentList.totalItems;
+  totalPages = commentList.totalPages;
+} catch {
+  loadError = true;
+}
+const status = Astro.url.searchParams.get('status');
+const tone = Astro.url.searchParams.get('tone');
+
+const statusMessageMap: Record<string, string> = {
+  comment_hidden: 'Komentar berhasil disembunyikan.',
+  comment_visible: 'Komentar berhasil ditampilkan kembali.',
+  comment_not_found: 'Komentar yang dipilih tidak ditemukan.',
+  validation_failed: 'Aksi moderasi tidak valid.',
+  server_error: 'Terjadi kesalahan server saat memoderasi komentar.',
+};
+
+const flashMessage = status ? statusMessageMap[status] ?? 'Status moderasi komentar diperbarui.' : null;
+---
+
+<AdminLayout
+  title="Admin Comments"
+  description="Moderasi komentar lesson melalui trusted backend route yang memakai PocketBase admin/superuser context."
+  currentPath={Astro.url.pathname}
+>
+  <div class="space-y-6">
+    {flashMessage ? (
+      <div
+        class:list={[
+          'rounded-2xl border px-4 py-3 text-sm',
+          tone === 'success'
+            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+            : 'border-red-500/30 bg-red-500/10 text-red-300',
+        ]}
+      >
+        {flashMessage}
+      </div>
+    ) : null}
+
+    {loadError ? (
+      <div class="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        Gagal memuat daftar komentar untuk moderasi. Periksa konfigurasi trusted backend atau koneksi PocketBase.
+      </div>
+    ) : null}
+
+    <section class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 lg:p-8">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="text-xs font-mono uppercase tracking-[0.2em] text-[var(--color-primary)]">Comment moderation</p>
+          <h2 class="mt-2 text-xl font-bold text-[var(--color-text)]">Daftar komentar</h2>
+          <p class="mt-2 max-w-3xl text-sm text-[var(--color-muted)]">
+            Owner tetap mengelola komentar sendiri untuk edit/hapus biasa, tetapi hide/unhide dilakukan
+            lewat trusted backend admin route agar tidak bergantung pada raw role bypass di PocketBase.
+          </p>
+        </div>
+        <span class="text-sm text-[var(--color-muted)]">
+          {loadError ? 'Komentar tidak tersedia' : `${totalItems} komentar · halaman ${currentPage}/${Math.max(totalPages, 1)}`}
+        </span>
+      </div>
+
+      <div class="mt-6 space-y-4">
+        {!loadError && comments.length === 0 ? (
+          <div class="rounded-xl border border-dashed border-[var(--color-border)] px-4 py-6 text-sm text-[var(--color-muted)]">
+            Belum ada komentar yang bisa dimoderasi.
+          </div>
+        ) : comments.map((comment) => (
+          <article class="rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] p-4 lg:p-5">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2 text-xs text-[var(--color-muted)]">
+                  <span class="rounded-full border border-[var(--color-border)] px-2.5 py-1">
+                    {comment.is_hidden ? 'Hidden' : 'Visible'}
+                  </span>
+                  <span class="rounded-full border border-[var(--color-border)] px-2.5 py-1">
+                    @{comment.expand?.user?.username ?? comment.user}
+                  </span>
+                  <span class="rounded-full border border-[var(--color-border)] px-2.5 py-1">
+                    {comment.expand?.lesson?.title ?? comment.lesson}
+                  </span>
+                  {comment.parent ? (
+                    <span class="rounded-full border border-[var(--color-border)] px-2.5 py-1">Reply</span>
+                  ) : null}
+                </div>
+
+                <p class="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--color-text)]">{comment.content}</p>
+
+                <p class="mt-3 text-xs text-[var(--color-muted)]">
+                  Dibuat {new Date(comment.created).toLocaleString('id-ID')}
+                </p>
+              </div>
+
+              <form
+                method="POST"
+                action={`/api/admin/comments/${comment.id}/moderate`}
+                class="flex shrink-0 flex-col gap-2 lg:w-52"
+              >
+                <input
+                  type="hidden"
+                  name="returnTo"
+                  value={buildCommentsPageHref(currentPage, Astro.url.searchParams)}
+                />
+                <input type="hidden" name="action" value={comment.is_hidden ? 'unhide' : 'hide'} />
+                <button
+                  type="submit"
+                  class:list={[
+                    'inline-flex h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold transition',
+                    comment.is_hidden
+                      ? 'border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10'
+                      : 'border border-red-500/30 text-red-300 hover:bg-red-500/10',
+                  ]}
+                >
+                  {comment.is_hidden ? 'Tampilkan kembali' : 'Sembunyikan komentar'}
+                </button>
+              </form>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {!loadError && totalPages > 1 ? (
+        <div class="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border)] pt-4 text-sm">
+          <span class="text-[var(--color-muted)]">
+            Menampilkan halaman {currentPage} dari {totalPages}
+          </span>
+          <div class="flex items-center gap-2">
+            {currentPage > 1 ? (
+              <a
+                href={buildCommentsPageHref(currentPage - 1, Astro.url.searchParams)}
+                class="inline-flex h-10 items-center rounded-xl border border-[var(--color-border)] px-4 text-[var(--color-text)] no-underline transition hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-bg)]"
+              >
+                Sebelumnya
+              </a>
+            ) : (
+              <span class="inline-flex h-10 items-center rounded-xl border border-[var(--color-border)] px-4 text-[var(--color-muted)] opacity-60">
+                Sebelumnya
+              </span>
+            )}
+
+            {currentPage < totalPages ? (
+              <a
+                href={buildCommentsPageHref(currentPage + 1, Astro.url.searchParams)}
+                class="inline-flex h-10 items-center rounded-xl border border-[var(--color-border)] px-4 text-[var(--color-text)] no-underline transition hover:border-[var(--color-primary)]/50 hover:bg-[var(--color-bg)]"
+              >
+                Berikutnya
+              </a>
+            ) : (
+              <span class="inline-flex h-10 items-center rounded-xl border border-[var(--color-border)] px-4 text-[var(--color-muted)] opacity-60">
+                Berikutnya
+              </span>
+            )}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  </div>
+</AdminLayout>

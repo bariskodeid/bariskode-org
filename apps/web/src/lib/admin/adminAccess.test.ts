@@ -92,6 +92,7 @@ describe('admin navigation helpers', () => {
     it('maps current path to a known admin section', () => {
         expect(getAdminSectionFromPath('/admin')).toBe('overview');
         expect(getAdminSectionFromPath('/admin/categories')).toBe('categories');
+        expect(getAdminSectionFromPath('/admin/comments')).toBe('comments');
         expect(getAdminSectionFromPath('/admin/courses/new')).toBe('courses');
         expect(getAdminSectionFromPath('/administer')).toBeNull();
         expect(getAdminSectionFromPath('/dashboard')).toBeNull();
@@ -100,9 +101,10 @@ describe('admin navigation helpers', () => {
     it('returns stable nav structure with one active item', () => {
         const navItems = getAdminNavItems('/admin/courses');
 
-        expect(navItems).toHaveLength(3);
+        expect(navItems).toHaveLength(4);
         expect(navItems.filter((item) => item.isActive)).toHaveLength(1);
         expect(navItems.find((item) => item.key === 'courses')?.isActive).toBe(true);
         expect(navItems.find((item) => item.key === 'overview')?.isActive).toBe(false);
+        expect(navItems.find((item) => item.key === 'comments')?.isActive).toBe(false);
     });
 });

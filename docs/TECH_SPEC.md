@@ -417,6 +417,15 @@ onRecordAfterCreateRequest((e) => {
 > `ctf_solves` also now follows trusted-backend writes for create/update/delete. Its authenticated
 > list access is intentionally retained for leaderboard/community ranking use, while single-record
 > views remain restricted to owner/admin.
+>
+> `comments` keeps self-service create/update/delete for the owner, but admin/instructor moderation
+> now goes through a trusted backend admin route using PocketBase admin/superuser context rather
+> than raw collection-rule bypass on `users.role = 'admin'`.
+>
+> PocketBase hook-level field protection is required so comment owners cannot mutate moderation or
+> ownership fields (`is_hidden`, `user`, `lesson`, `parent`) through normal self-service updates.
+> The same hook also enforces published lesson/course targets, same-lesson replies, max 2-level
+> nesting, and blocks replies to hidden comments.
 
 ### TypeScript Types
 
@@ -508,7 +517,7 @@ GET    /api/leaderboard            → XP leaderboard
 | Create/edit courses | — | ✓ | ✓ |
 | View course analytics | — | Own only | ✓ |
 | Manage users | — | — | ✓ |
-| Moderate comments | — | Own course | ✓ |
+| Moderate comments | — | Trusted backend only | Trusted backend only |
 | Create CTF challenges | — | — | ✓ |
 
 ### OAuth Flow

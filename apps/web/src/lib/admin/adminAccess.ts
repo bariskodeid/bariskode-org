@@ -26,6 +26,12 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
         href: '/admin/courses',
         description: 'Kelola course, module, lesson, dan status publish.',
     },
+    {
+        key: 'comments',
+        label: 'Comments',
+        href: '/admin/comments',
+        description: 'Moderasi komentar lesson melalui trusted backend.',
+    },
 ];
 
 export type AdminRouteAccessResult =

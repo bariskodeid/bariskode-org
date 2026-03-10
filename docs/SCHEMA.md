@@ -500,11 +500,22 @@ deleteRule: null    // trusted backend / PocketBase admin only
 
 ```
 listRule:   "is_hidden = false && lesson.module.course.status = 'published'"
-viewRule:   "is_hidden = false || user = @request.auth.id || @request.auth.role = 'admin'"
+viewRule:   "is_hidden = false || user = @request.auth.id"
 createRule: "@request.auth.id != '' && @request.data.user = @request.auth.id"
 updateRule: "user = @request.auth.id"
-deleteRule: "user = @request.auth.id || @request.auth.role = 'admin'"
+deleteRule: "user = @request.auth.id"
 ```
+
+> Catatan: bypass moderasi berbasis raw `users.role = 'admin'` telah dihapus dari collection rule.
+> Moderation / privileged reads untuk hidden comments kini harus lewat trusted backend yang memakai
+> PocketBase admin/superuser context. Implementasi awalnya tersedia lewat route admin server-side,
+> bukan lagi lewat direct client collection access.
+>
+> Self-service owner update juga dibatasi oleh hook PocketBase agar user tidak bisa mengubah field
+> moderasi/ownership seperti `user`, `lesson`, `parent`, atau `is_hidden` setelah comment dibuat.
+> Hook yang sama juga memvalidasi bahwa comment/reply hanya bisa dibuat pada lesson & course yang
+> published, reply harus tetap dalam lesson yang sama, tidak boleh melebihi 2 level nesting, dan
+> tidak boleh membalas hidden comment.
 
 ---
 
@@ -526,7 +537,7 @@ Summary RBAC matrix antar collection dan role:
 | user_badges | — | Own | — | Trusted backend only |
 | ctf_challenges | — | Active | — | CRUD |
 | ctf_solves | — | Authenticated list for leaderboard, own/admin view | — | Trusted backend only |
-| comments | Published | CRUD own | Hide own course | All |
+| comments | Published | CRUD own | Hide/moderate via trusted backend | Trusted backend only |
 
 > \* Lessons: student harus login untuk akses
 
@@ -1186,10 +1197,10 @@ migrate((app) => {
     name: "comments",
     type: "base",
     listRule:   "is_hidden = false && lesson.module.course.status = 'published'",
-    viewRule:   "is_hidden = false || user = @request.auth.id || @request.auth.role = 'admin'",
+    viewRule:   "is_hidden = false || user = @request.auth.id",
     createRule: "@request.auth.id != '' && @request.data.user = @request.auth.id",
     updateRule: "user = @request.auth.id",
-    deleteRule: "user = @request.auth.id || @request.auth.role = 'admin'",
+    deleteRule: "user = @request.auth.id",
     fields: [
       {
         type: "relation", name: "user",
