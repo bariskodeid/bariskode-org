@@ -11,7 +11,7 @@
 | **Author** | Apin + AI implementation review |
 | **Relates To** | PRD-001 · TECH-SPEC-001 · SCHEMA-001 |
 | **Current Stack (repo actual)** | Astro 5 + React 19 + Tailwind 4 + PocketBase 0.22 |
-| **Last Updated** | 2026-03-09 |
+| **Last Updated** | 2026-03-10 |
 
 ---
 
@@ -303,8 +303,8 @@ Status di bawah ini memisahkan dengan tegas antara:
 | CI pipeline | **Missing** | Belum ada `.github/workflows/` atau pipeline otomatis lain di repo. |
 | Staging deploy automation | **Missing** | Belum ada workflow deploy staging tervalidasi. |
 | Production deploy workflow | **Missing** | Belum ada approval/release/rollback workflow tervalidasi. |
-| Security hardening baseline | **Partial** | Sudah ada beberapa perbaikan validasi/redirect/error handling dan trusted server-side PocketBase client mulai dipakai untuk write path sensitif, tetapi CSRF, rate limiting, dan security headers belum lengkap. |
-| Authorization audit | **Partial** | Middleware/admin guard ada, tetapi edge-case audit belum lengkap. |
+| Security hardening baseline | **Partial** | Sudah ada trusted admin allowlist di app layer, lock-down rules untuk `user_progress`/`certificates`/`xp_awards`/`quiz_submission_locks`, hardening `badges` dan `user_badges` ke trusted-backend write path, serta lock write path `ctf_solves`; CSRF, rate limiting, dan security headers masih belum lengkap. |
+| Authorization audit | **Partial** | Middleware/admin guard dan beberapa collection rule sensitif sudah diaudit; untuk CTF, write path `ctf_solves` sudah dikunci ke trusted backend sementara authenticated list access sengaja dipertahankan untuk leaderboard. Collection lama lain (mis. comments/content visibility) masih perlu diseragamkan. |
 | Certificate data integrity | **Partial** | Dedupe/idempotency app-layer sudah ada, view rule PocketBase sudah diketatkan, dan PDF download kini owner/admin only; validasi runtime migration environment tetap diperlukan. |
 | XP/progress source of truth | **Partial** | Route sudah memakai kontrak sinkronisasi yang seragam, tetapi awarding akhir tetap bergantung pada hook PocketBase. |
 | Structured logging & monitoring | **Missing** | Belum ada observability baseline yang terlihat. |

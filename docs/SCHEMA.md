@@ -169,10 +169,14 @@ deleteRule: "@request.auth.role = 'admin'"
 ```
 listRule:   ""     // public
 viewRule:   ""     // public
-createRule: "@request.auth.role = 'admin'"
-updateRule: "@request.auth.role = 'admin'"
-deleteRule: "@request.auth.role = 'admin'"
+createRule: null    // trusted backend / PocketBase admin only
+updateRule: null    // trusted backend / PocketBase admin only
+deleteRule: null    // trusted backend / PocketBase admin only
 ```
+
+> Catatan: definisi badge sekarang diperlakukan sebagai reference data yang public-readable,
+> tetapi write path-nya tidak lagi mengandalkan `users.role = 'admin'`. Perubahan badge
+> harus lewat trusted server flow atau PocketBase admin context.
 
 ---
 
@@ -370,10 +374,14 @@ deleteRule: "@request.auth.role = 'admin'"
 ```
 listRule:   ""     // public
 viewRule:   ""     // public
-createRule: "@request.auth.role = 'admin'"
-updateRule: "@request.auth.role = 'admin'"
-deleteRule: "@request.auth.role = 'admin'"
+createRule: null    // trusted backend / PocketBase admin only
+updateRule: null    // trusted backend / PocketBase admin only
+deleteRule: null    // trusted backend / PocketBase admin only
 ```
+
+> Catatan: definisi `badges` sekarang diperlakukan sebagai reference data yang tetap
+> public-readable, tetapi write path-nya tidak lagi mengandalkan `users.role = 'admin'`.
+> Perubahan badge harus lewat trusted backend atau PocketBase admin context.
 
 ---
 
@@ -393,12 +401,16 @@ deleteRule: "@request.auth.role = 'admin'"
 **Access Rules:**
 
 ```
-listRule:   "user = @request.auth.id || @request.auth.role = 'admin'"
-viewRule:   "user = @request.auth.id || @request.auth.role = 'admin'"
-createRule: "@request.auth.role = 'admin'"   // only via pb_hooks
-updateRule: "@request.auth.role = 'admin'"
-deleteRule: "@request.auth.role = 'admin'"
+listRule:   "user = @request.auth.id"
+viewRule:   "user = @request.auth.id"
+createRule: null    // trusted backend / PocketBase admin only
+updateRule: null    // trusted backend / PocketBase admin only
+deleteRule: null    // trusted backend / PocketBase admin only
 ```
+
+> Catatan: `user_badges` sekarang mengikuti pola owner-read + trusted-server-write.
+> User biasa hanya bisa membaca badge miliknya sendiri, sedangkan awarding / privileged reads
+> harus lewat trusted backend atau PocketBase admin context.
 
 ---
 
@@ -458,10 +470,14 @@ deleteRule: "@request.auth.role = 'admin'"
 ```
 listRule:   "@request.auth.id != ''"
 viewRule:   "user = @request.auth.id || @request.auth.role = 'admin'"
-createRule: "@request.auth.role = 'admin'"   // only via API route
-updateRule: "@request.auth.role = 'admin'"
-deleteRule: "@request.auth.role = 'admin'"
+createRule: null    // trusted backend / PocketBase admin only
+updateRule: null    // trusted backend / PocketBase admin only
+deleteRule: null    // trusted backend / PocketBase admin only
 ```
+
+> Catatan: write path `ctf_solves` sekarang dikunci ke trusted backend / PocketBase admin
+> context. `listRule` sengaja tetap broad untuk user terautentikasi agar solve data bisa dipakai
+> oleh leaderboard/community ranking flow, sementara `viewRule` tetap dibatasi ke owner/admin.
 
 ---
 
@@ -506,10 +522,10 @@ Summary RBAC matrix antar collection dan role:
 | quiz_questions | — | — | Own | All |
 | user_progress | — | Own | — | All |
 | certificates | Verify only | Own | — | All |
-| badges | Read | Read | Read | CRUD |
-| user_badges | — | Own | — | All |
+| badges | Read | Read | Read | Trusted backend only |
+| user_badges | — | Own | — | Trusted backend only |
 | ctf_challenges | — | Active | — | CRUD |
-| ctf_solves | — | Own | — | All |
+| ctf_solves | — | Authenticated list for leaderboard, own/admin view | — | Trusted backend only |
 | comments | Published | CRUD own | Hide own course | All |
 
 > \* Lessons: student harus login untuk akses

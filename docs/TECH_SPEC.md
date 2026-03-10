@@ -360,7 +360,8 @@ export const collections = {
   progress:     () => pb.collection('user_progress'),
   certificates: () => pb.collection('certificates'),
   ctf:          () => pb.collection('ctf_challenges'),
-  badges:       () => pb.collection('user_badges'),
+  badges:       () => pb.collection('badges'),
+  userBadges:   () => pb.collection('user_badges'),
   comments:     () => pb.collection('comments'),
 };
 ```
@@ -408,6 +409,14 @@ onRecordAfterCreateRequest((e) => {
 | `ctf_challenges` | title, category, difficulty, points, flag_hash, hints (JSON) | — | flag = bcrypt hash |
 | `ctf_solves` | points_earned, hints_used, solved_at | user→users, challenge→ctf_challenges | Unique: (user, challenge) |
 | `comments` | content, is_hidden | user→users, lesson→lessons, parent→comments | Nested max 2 levels |
+
+> Security note: `badges` remains public-readable, while `badges` writes and all privileged
+> `user_badges` operations are intended to go through trusted backend / PocketBase admin context,
+> not raw client-authenticated `users.role = 'admin'` access.
+>
+> `ctf_solves` also now follows trusted-backend writes for create/update/delete. Its authenticated
+> list access is intentionally retained for leaderboard/community ranking use, while single-record
+> views remain restricted to owner/admin.
 
 ### TypeScript Types
 
