@@ -5,7 +5,7 @@ This repository started documentation-first and now already contains a working s
 ## 1. Quick Orientation
 
 - **Current actual stack (verify against repo):** Astro 5, React 19, Tailwind 4, PocketBase 0.22, Docker Compose.
-- **Current doc sources:** `docs/IMPLEMENTATION.md`, `docs/TECH_SPEC.md`, `docs/SCHEMA.md`, `docs/PRD.md`. Use them as planning/reference documents, but prefer actual repo code, scripts, and config whenever they diverge.
+- **Current doc sources:** `docs/IMPLEMENTATION.md`, `docs/PRODUCTION_PLAN.md`, `docs/PRODUCTION_EPICS.md`, `docs/TECH_SPEC.md`, `docs/SCHEMA.md`, `docs/PRD.md`. Use them as planning/reference documents, but prefer actual repo code, scripts, and config whenever they diverge.
 - **Directory targets:** `apps/web/` for Astro, `apps/pocketbase/` for PB binaries/migrations, and `docker/` for Compose artifacts.
 - **Environment hints:** `.env.example` exists; keep env references in docs aligned with actual runtime requirements.
 
@@ -21,13 +21,14 @@ This repository started documentation-first and now already contains a working s
 | --- | --- | --- |
 | Start frontend dev server | `npm --prefix apps/web run dev` | Verified from `apps/web/package.json`. |
 | Build production frontend | `npm --prefix apps/web run build` | Verified from `apps/web/package.json`. |
-| Run Astro typecheck | `npm --prefix apps/web run typecheck` | Verified from `apps/web/package.json`; currently useful as a readiness gate even if baseline issues still exist. |
+| Run Astro typecheck | `npm --prefix apps/web run typecheck` | Verified from `apps/web/package.json`; use as readiness gate. |
 | Run linting (Astro/TS) | `npm --prefix apps/web run lint` | Not yet available; only run after the script exists. |
 | Run entire test suite | `npm --prefix apps/web run test` | Currently maps to Playwright E2E smoke tests. |
 | Run E2E smoke tests | `npm --prefix apps/web run test:e2e` | Verified from `apps/web/package.json`. |
-| Run local CI gate | `npm --prefix apps/web run ci` | Verified from `apps/web/package.json`; note that it currently fails until type issues are resolved. |
-| Run PocketBase migrations | `./apps/pocketbase/pocketbase migrate up` | Docs cite `./pocketbase migrate up`; map binary path under `apps/pocketbase`. |
-| Start Docker stack | `docker compose -f docker/docker-compose.yml up -d` | Documented command; always bring down with `docker compose down` after experiments. |
+| Run local CI gate | `npm --prefix apps/web run ci` | Verified from `apps/web/package.json`; keep status updated in `docs/IMPLEMENTATION.md`. |
+| Run PocketBase migrations | `docker compose -f docker-compose.yml exec pocketbase /pb/pocketbase migrate up` | Recommended runnable path when using compose. If local binary exists, `./apps/pocketbase/pocketbase migrate up` is optional. |
+| Start Docker stack (canonical full stack) | `docker compose -f docker-compose.yml up -d` | Canonical full stack (web + pocketbase). Bring down with `docker compose -f docker-compose.yml down`. |
+| Start PocketBase-only stack (limited scope) | `docker compose -f docker/docker-compose.yml up -d` | Optional for backend-only local checks. |
 
 **Single test execution:**
 
@@ -104,6 +105,8 @@ This repository started documentation-first and now already contains a working s
 - If you regenerate docs (via scripts or manually), check for broken hyperlinks and inaccurate command references.
 - When answering readiness questions, keep a clear split between **MVP done** and **production-ready**. Do not collapse them into one status.
 - If you update readiness status, sync it into `docs/IMPLEMENTATION.md` using explicit labels such as **Done / Partial / Missing** and explain blockers briefly.
+- Keep `docs/PRODUCTION_PLAN.md` aligned with any new readiness decisions, timeline shifts, or quality gate changes.
+- When changing one core doc (`IMPLEMENTATION`, `PRODUCTION_PLAN`, `TECH_SPEC`, `SCHEMA`, `PRD`), run a quick cross-check and update the others if terminology/status/drift changes.
 
 ## 7. Pre-Flight Checklist
 
@@ -131,5 +134,6 @@ After making modifications, verify the following:
 
 - When the actual monorepo is scaffolded, update this file with real command outputs from `package.json` scripts and any added Cursor/Copilot rules.
 - Any inferred instruction (e.g., running `astro build` or `docker compose up`) should be cross-checked with the new `package.json` and `docker-compose` files before committing.
-- Current known reality: build and Playwright smoke tests are verified; typecheck script exists but is not yet green; no verified lint script or CI workflow exists yet.
+- Current known reality: build and Playwright smoke tests are verified; typecheck script exists as readiness gate; no verified lint script or CI workflow exists yet.
+- Current known reality: production-readiness roadmap is tracked in `docs/PRODUCTION_PLAN.md` (90-day workstreams + go-live gates).
 - Keep this doc under 200 lines so agents can quickly scan for actionable guidance.

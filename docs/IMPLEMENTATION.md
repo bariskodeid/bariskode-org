@@ -6,17 +6,18 @@
 | Field | Detail |
 |---|---|
 | **Document ID** | IMPL-001 |
-| **Version** | 2.2.0 |
-| **Status** | Updated after repository audit |
+| **Version** | 2.3.0 |
+| **Status** | Synced with production plan & status markers |
 | **Author** | Apin + AI implementation review |
-| **Relates To** | PRD-001 · TECH-SPEC-001 · SCHEMA-001 |
+| **Relates To** | PRD-001 · TECH-SPEC-001 · SCHEMA-001 · PLAN-PRD-READY-001 |
 | **Current Stack (repo actual)** | Astro 5 + React 19 + Tailwind 4 + PocketBase 0.22 |
-| **Last Updated** | 2026-03-10 |
+| **Last Updated** | 2026-04-22 |
 
 ---
 
 ## Table of Contents
 
+0. [Status Markers Snapshot (Done / Partial / Missing)](#0-status-markers-snapshot-done--partial--missing)
 1. [Executive Summary](#1-executive-summary)
 2. [Current Repository Snapshot](#2-current-repository-snapshot)
 3. [MVP Completion Assessment](#3-mvp-completion-assessment)
@@ -29,6 +30,25 @@
 10. [Suggested 90-Day Rollout](#10-suggested-90-day-rollout)
 11. [Definition of Done — Production Ready](#11-definition-of-done--production-ready)
 12. [Immediate Next Actions](#12-immediate-next-actions)
+
+---
+
+## 0. Status Markers Snapshot (Done / Partial / Missing)
+
+Snapshot ini menjadi penanda cepat yang harus selalu di-update saat ada perubahan readiness.
+
+| Area | Status | Catatan ringkas |
+|---|---|---|
+| Frontend core flows | **Done** | Halaman utama MVP tersedia dan berjalan pada level repository. |
+| PocketBase backend operasional | **Partial** | Migrations/hooks ada; canonical runtime sudah ditetapkan ke `docker-compose.yml` root, namun reproducibility/automation production masih perlu dilanjutkan. |
+| Auth end-to-end provider nyata | **Partial** | Flow aplikasi tersedia, validasi provider nyata (SMTP/OAuth) perlu dibuktikan di environment target. |
+| Testing depth (integration + critical E2E) | **Partial** | Unit + smoke E2E ada; journey kritikal penuh belum komprehensif. |
+| CI/CD automation | **Missing** | Belum ada workflow CI/CD terverifikasi di repository. |
+| Security hardening production | **Partial** | Baseline sudah ada, rate limiting + hardening menyeluruh masih lanjut. |
+| Observability & runbook ops | **Missing** | Health/alerts/runbook formal belum lengkap. |
+| Documentation sync lintas dokumen | **Partial** | Sedang disinkronkan, tetap perlu dijaga pada setiap perubahan besar. |
+
+Rencana eksekusi detail production-ready dipusatkan di `docs/PRODUCTION_PLAN.md`.
 
 ---
 
@@ -371,13 +391,14 @@ Roadmap berikut dibagi per fase agar eksekusi lebih realistis.
 | Phase | Focus | Priority | Outcome |
 |---|---|---|---|
 | 0 | Reconcile docs vs code | P0 | Satu baseline teknis yang konsisten |
-| 1 | Security hardening lanjutan | P0 | Surface area lebih aman untuk user nyata |
-| 2 | Testing foundation | P0 | Ada confidence gate sebelum release |
-| 3 | CI/CD & release engineering | P0 | Deploy repeatable ke staging/production |
-| 4 | Observability & operations | P1 | Error, logs, health, alerts terlihat |
-| 5 | Deployment, backup, DR | P1 | Recovery dan rollback siap |
-| 6 | Content ops & governance | P1 | Workflow publish/moderasi lebih aman |
-| 7 | Performance & scale readiness | P2 | Siap tumbuh tanpa redesign prematur |
+| 1 | Validate completed MVP flows | P0 | Flow inti tervalidasi di environment target |
+| 2 | Security hardening lanjutan | P0 | Surface area lebih aman untuk user nyata |
+| 3 | Testing foundation | P0 | Ada confidence gate sebelum release |
+| 4 | CI/CD & release engineering | P0 | Deploy repeatable ke staging/production |
+| 5 | Observability & operations | P1 | Error, logs, health, alerts terlihat |
+| 6 | Deployment, backup, DR | P1 | Recovery dan rollback siap |
+| 7 | Content ops & governance | P1 | Workflow publish/moderasi lebih aman |
+| 8 | Performance & scale readiness | P2 | Siap tumbuh tanpa redesign prematur |
 
 ---
 
@@ -393,10 +414,10 @@ Roadmap berikut dibagi per fase agar eksekusi lebih realistis.
    - Astro 5
    - React 19
    - Tailwind 4
-2. Tentukan deployment path kanonis:
-   - saat audit, terdapat `docker-compose.yml` di root dan `docker/docker-compose.yml`,
-   - pilih satu file sebagai source of truth,
-   - tandai file lainnya sebagai legacy, limited-scope, atau hapus jika tidak dipakai.
+2. Tegaskan deployment path kanonis (sudah diputuskan):
+   - `docker-compose.yml` root = canonical full stack,
+   - `docker/docker-compose.yml` = pocketbase-only (limited scope),
+   - jaga dokumentasi command tetap sinkron agar tidak terjadi drift.
 3. Review target file structure agar sesuai implementasi riil.
 4. Tambahkan section “known drift” pada docs arsitektur.
 

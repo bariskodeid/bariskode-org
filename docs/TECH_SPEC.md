@@ -6,12 +6,26 @@
 | Field           | Detail                                         |
 |-----------------|------------------------------------------------|
 | **Document ID** | TECH-SPEC-001                                  |
-| **Version**     | 1.0.0                                          |
-| **Status**      | Draft                                          |
+| **Version**     | 1.1.0                                          |
+| **Status**      | Living document (partially aligned)            |
 | **Author**      | Apin                                           |
-| **Relates To**  | PRD-001                                        |
-| **Stack**       | Astro.js + Tailwind CSS + PocketBase           |
+| **Relates To**  | PRD-001 · IMPL-001 · PLAN-PRD-READY-001        |
+| **Stack**       | Astro 5 + React 19 + Tailwind 4 + PocketBase 0.22 |
 | **Created**     | 2025                                           |
+| **Last Updated**| 2026-04-22                                     |
+
+---
+
+## Alignment Note (2026-04-22)
+
+Dokumen ini masih memuat beberapa bagian desain yang bersifat aspirational (mis. Judge0/Meilisearch full rollout).
+Untuk status implementasi aktual dan gap readiness, gunakan:
+
+- `docs/IMPLEMENTATION.md` (snapshot Done/Partial/Missing),
+- `docs/PRODUCTION_PLAN.md` (roadmap 90 hari + quality gates),
+- `docs/PRODUCTION_EPICS.md` (epic backlog siap eksekusi).
+
+Jika terjadi konflik antara dokumen ini dan kode aktual, prioritaskan kode aktual + `IMPLEMENTATION.md`.
 
 ---
 
@@ -55,9 +69,9 @@
 
 | Layer | Technology | Version | Role | Priority |
 |-------|-----------|---------|------|----------|
-| Frontend Framework | **Astro.js** | ^4.x | SSR/Static pages, islands architecture | P0 |
-| UI Components | **React** | ^18.x | Interactive islands (quiz, editor, dashboard) | P0 |
-| Styling | **Tailwind CSS** | ^3.x | Utility-first styling, dark mode | P0 |
+| Frontend Framework | **Astro** | ^5.x | SSR/Static pages, islands architecture | P0 |
+| UI Components | **React** | ^19.x | Interactive islands (quiz, editor, dashboard) | P0 |
+| Styling | **Tailwind CSS** | ^4.x | Utility-first styling, dark mode | P0 |
 | Backend / DB | **PocketBase** | ^0.22.x | All-in-one: auth, DB (SQLite), REST API, file storage | P0 |
 | Code Execution | **Judge0 CE** | latest | Sandboxed multi-language code runner | P0 |
 | Code Editor | **Monaco Editor** | ^0.46.x | In-browser IDE (VSCode engine) | P0 |
@@ -124,6 +138,9 @@ User reads lesson
 
 ## 3. Project Structure
 
+> ⚠️ **Status:** section ini campuran antara struktur terverifikasi saat ini dan rencana roadmap.
+> Untuk status aktual, rujuk `docs/IMPLEMENTATION.md`.
+
 ```
 /platform
 ├── apps/
@@ -187,6 +204,28 @@ User reads lesson
     └── workflows/
 ```
 
+### 3.1 Verified Current (Repo Aktual)
+
+- `apps/web/src/pages/index.astro`
+- `apps/web/src/pages/courses/index.astro`
+- `apps/web/src/pages/courses/[slug].astro`
+- `apps/web/src/pages/learn/[lessonId].astro`
+- `apps/web/src/pages/quiz/[lessonId].astro`
+- `apps/web/src/pages/dashboard/index.astro`
+- `apps/web/src/pages/verify/[certId].astro`
+- `apps/pocketbase/pb_migrations/`
+- `apps/pocketbase/pb_hooks/`
+- `docker-compose.yml` (canonical full stack)
+- `docker/docker-compose.yml` (pocketbase-only, limited scope)
+
+### 3.2 Planned / Aspirational (Belum Seluruhnya Ada di Repo)
+
+- `apps/web/src/pages/playground/`
+- `apps/web/src/pages/ctf/`
+- `apps/web/src/content/courses/` (MDX workflow)
+- `docker/docker-compose.prod.yml`
+- `.github/workflows/`
+
 ---
 
 ## 4. Astro.js Setup
@@ -215,23 +254,25 @@ export default defineConfig({
 
 ### Key Dependencies
 
+> **Status:** blok ini menampilkan baseline dependency aktual (verified) yang dipakai saat ini.
+
 ```json
 {
   "dependencies": {
-    "astro":                  "^4.15.0",
-    "@astrojs/react":         "^3.6.0",
-    "@astrojs/tailwind":      "^5.1.0",
-    "@astrojs/mdx":           "^3.1.0",
-    "@astrojs/node":          "^8.3.0",
-    "pocketbase":             "^0.22.0",
-    "@monaco-editor/react":   "^4.6.0",
-    "@react-pdf/renderer":    "^3.4.0",
-    "meilisearch":            "^0.44.0",
-    "nanostores":             "^0.11.0",
-    "@nanostores/react":      "^0.7.0",
-    "qrcode":                 "^1.5.3",
+    "astro":                  "^5.17.1",
+    "@astrojs/react":         "^4.4.2",
+    "@astrojs/mdx":           "^4.3.13",
+    "@astrojs/node":          "^9.5.4",
+    "react":                  "^19.2.4",
+    "react-dom":              "^19.2.4",
+    "tailwindcss":            "^4.2.1",
+    "pocketbase":             "^0.22.1",
+    "@react-pdf/renderer":    "^4.3.2",
+    "nanostores":             "^0.11.4",
+    "@nanostores/react":      "^0.7.3",
+    "qrcode":                 "^1.5.4",
     "date-fns":               "^3.6.0",
-    "zod":                    "^3.23.0"
+    "zod":                    "^3.25.76"
   }
 }
 ```
@@ -908,6 +949,29 @@ export async function search(query: string, filters?: string) {
 ---
 
 ## 18. Docker Setup
+
+### 18.1 Verified Current (Canonical)
+
+```bash
+# Full stack (web + pocketbase)
+docker compose -f docker-compose.yml up -d
+
+# Apply PocketBase migrations via container
+docker compose -f docker-compose.yml exec pocketbase /pb/pocketbase migrate up
+
+# Tear down
+docker compose -f docker-compose.yml down
+```
+
+### 18.2 Limited Scope (PocketBase-only)
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
+
+### 18.3 Planned Extended Stack (Judge0/Meilisearch)
+
+> **Status:** contoh di bawah adalah rencana/aspirational, belum menjadi source of truth runtime saat ini.
 
 ```yaml
 # docker/docker-compose.yml

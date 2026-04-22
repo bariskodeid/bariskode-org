@@ -6,12 +6,29 @@
 | Field           | Detail                                         |
 |-----------------|------------------------------------------------|
 | **Document ID** | SCHEMA-001                                     |
-| **Version**     | 1.0.0                                          |
-| **Status**      | Draft                                          |
+| **Version**     | 1.1.0                                          |
+| **Status**      | Living document (partially aligned)            |
 | **Author**      | Apin                                           |
-| **Relates To**  | PRD-001 · TECH-SPEC-001                        |
+| **Relates To**  | PRD-001 · TECH-SPEC-001 · IMPL-001 · PLAN-PRD-READY-001 |
 | **PocketBase**  | ^0.22.x                                        |
 | **Created**     | 2025                                           |
+| **Last Updated**| 2026-04-22                                     |
+
+---
+
+## Alignment Note (2026-04-22)
+
+Dokumen ini adalah referensi domain schema. Source of truth teknis tetap migration aktual di:
+
+- `apps/pocketbase/pb_migrations/`
+- `apps/pocketbase/pb_hooks/`
+
+Untuk status readiness implementasi gunakan:
+
+- `docs/IMPLEMENTATION.md`
+- `docs/PRODUCTION_PLAN.md`
+
+Jika ada konflik antara dokumen ini dan migration file, prioritaskan migration file.
 
 ---
 
@@ -47,17 +64,17 @@ Platform ini menggunakan **PocketBase** sebagai backend all-in-one dengan SQLite
 ### Cara Apply Schema
 
 ```bash
-# 1. Jalankan PocketBase pertama kali
-./pocketbase serve
+# Opsional: jalankan via compose canonical (full stack)
+docker compose -f docker-compose.yml up -d
 
-# 2. Apply semua migration
-./pocketbase migrate up
+# Apply migration via container PocketBase (recommended)
+docker compose -f docker-compose.yml exec pocketbase /pb/pocketbase migrate up
 
-# 3. Untuk generate snapshot migration dari Admin UI
-./pocketbase migrate collections
+# Alternatif: pocketbase-only compose (limited scope)
+docker compose -f docker/docker-compose.yml up -d
 
-# 4. Sync history setelah cleanup migration files
-./pocketbase migrate history-sync
+# Jika binary PocketBase tersedia lokal di apps/pocketbase/
+./apps/pocketbase/pocketbase migrate up
 ```
 
 ### Collection Types

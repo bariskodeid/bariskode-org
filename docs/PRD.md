@@ -6,12 +6,12 @@
 | Field            | Detail                                       |
 |------------------|----------------------------------------------|
 | **Document ID**  | PRD-001                                      |
-| **Version**      | 1.0.0                                        |
-| **Status**       | Draft                                        |
+| **Version**      | 1.1.0                                        |
+| **Status**       | Living document (scope + roadmap synced)     |
 | **Author**       | Apin                                         |
 | **Created**      | 2025                                         |
-| **Last Updated** | 2025                                         |
-| **Stack**        | Astro.js + Tailwind CSS + PocketBase         |
+| **Last Updated** | 2026-04-22                                   |
+| **Stack**        | Astro 5 + React 19 + Tailwind 4 + PocketBase |
 
 ---
 
@@ -20,6 +20,19 @@
 | Version | Date    | Author | Description              |
 |---------|---------|--------|--------------------------|
 | 1.0.0   | 2025    | Apin   | Initial draft            |
+| 1.1.0   | 2026-04-22 | AI + maintainer | Sinkronisasi stack aktual dan linkage ke implementation/production plan |
+
+---
+
+## Alignment Note (2026-04-22)
+
+PRD ini memegang produk vision dan requirement. Status implementasi dan readiness operasional dipisahkan ke:
+
+- `docs/IMPLEMENTATION.md` (status Done/Partial/Missing),
+- `docs/PRODUCTION_PLAN.md` (roadmap 90 hari),
+- `docs/PRODUCTION_EPICS.md` (epic backlog eksekusi).
+
+Jika terjadi konflik antara ambition PRD dan kondisi kode saat ini, prioritaskan `IMPLEMENTATION.md` sebagai baseline aktual.
 
 ---
 
