@@ -26,7 +26,7 @@ migrate((app) => {
         ],
         indexes: [
             'CREATE UNIQUE INDEX idx_xp_awards_idempotency_key ON xp_awards (idempotency_key)',
-            'CREATE INDEX idx_xp_awards_user_created ON xp_awards (user, created)',
+            'CREATE INDEX idx_xp_awards_user ON xp_awards (user)',
         ],
     });
 

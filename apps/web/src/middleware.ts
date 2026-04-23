@@ -62,10 +62,16 @@ export const onRequest = defineMiddleware(async ({ locals, request, redirect, ur
 
     const response = await next();
 
+    const trustProxy = process.env.TRUST_PROXY === '1';
+    const forwardedProto = trustProxy
+        ? request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim().toLowerCase()
+        : undefined;
+    const isHttpsRequest = url.protocol === 'https:' || forwardedProto === 'https';
+
     // Update cookie with latest auth state
     response.headers.append(
         'set-cookie',
-        pb.authStore.exportToCookie({ httpOnly: true, secure: true, sameSite: 'Lax' })
+        pb.authStore.exportToCookie({ httpOnly: true, secure: isHttpsRequest, sameSite: 'Lax' })
     );
 
     // Apply security headers

@@ -7,10 +7,15 @@ import mdx from '@astrojs/mdx';
 import node from '@astrojs/node';
 import sitemap from '@astrojs/sitemap';
 
+const checkOrigin = process.env.ASTRO_CHECK_ORIGIN !== 'false';
+
 // https://astro.build/config
 export default defineConfig({
   output: 'server',
   site: 'https://bariskode.org',
+  security: {
+    checkOrigin,
+  },
 
   integrations: [react(), mdx(), sitemap()],
 

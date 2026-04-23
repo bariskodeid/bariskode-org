@@ -21,6 +21,9 @@ services:
     build:
       context: .
       dockerfile: ./docker/Dockerfile.web
+      args:
+        PUBLIC_POCKETBASE_URL: ${PUBLIC_POCKETBASE_URL:-http://pocketbase:8090}
+        ASTRO_CHECK_ORIGIN: ${ASTRO_CHECK_ORIGIN:-true}
     container_name: bariskode-web
     restart: unless-stopped
     ports:
@@ -29,6 +32,9 @@ services:
       - HOST=0.0.0.0
       - PORT=4321
       - PUBLIC_POCKETBASE_URL=http://pocketbase:8090
+      - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL:-}
+      - POCKETBASE_ADMIN_PASSWORD=${POCKETBASE_ADMIN_PASSWORD:-}
+      - ASTRO_CHECK_ORIGIN=${ASTRO_CHECK_ORIGIN:-true}
     depends_on:
       pocketbase:
         condition: service_healthy

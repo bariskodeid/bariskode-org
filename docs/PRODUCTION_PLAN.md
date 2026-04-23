@@ -6,11 +6,25 @@
 | Field | Detail |
 |---|---|
 | **Document ID** | PLAN-PRD-READY-001 |
-| **Version** | 1.0.0 |
+| **Version** | 1.1.0 |
 | **Status** | Active Plan |
 | **Owner** | Engineering |
 | **Relates To** | `docs/IMPLEMENTATION.md`, `docs/TECH_SPEC.md`, `docs/SCHEMA.md`, `docs/PRD.md` |
-| **Last Updated** | 2026-04-22 |
+| **Last Updated** | 2026-04-23 |
+
+---
+
+## 0) Execution Snapshot (Update)
+
+Status update untuk eksekusi fase awal:
+
+- ✅ **AQ-01 (P0)** selesai — lint gate aktif (`apps/web/package.json`, `apps/web/eslint.config.mjs`)
+- ✅ **PI-03 (P0) baseline** selesai sebagian inti — CI workflow baseline tersedia (`.github/workflows/ci.yml`)
+- ✅ **AQ-04 (P0) authenticated critical journey** tervalidasi di environment docker lokal (auth → learn → quiz → certificate)
+- ✅ Verifikasi lokal lolos: `lint`, `typecheck`, `test:unit`, `build`
+- ✅ Verifikasi E2E AQ-04 lolos (`npm --prefix apps/web run test:e2e -- tests/e2e/critical-journeys.spec.ts`) dengan env test yang sesuai
+- ⏳ Sisa PI-03: perlu validasi run di GitHub Actions setelah PR/push berikutnya
+- ⏳ Pekerjaan berikutnya: SEC-01 (API security guard baseline), DB-01 (migration governance), PI-04 (staging CD + smoke)
 
 ---
 

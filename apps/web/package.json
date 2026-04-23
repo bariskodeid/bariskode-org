@@ -6,6 +6,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "typecheck": "astro check",
+    "lint": "eslint . --ext .astro,.ts,.tsx,.js,.mjs,.cjs --max-warnings=0",
+    "lint:fix": "eslint . --ext .astro,.ts,.tsx,.js,.mjs,.cjs --fix",
     "preview": "astro preview",
     "astro": "astro",
     "test": "npm run test:e2e",
@@ -18,6 +20,9 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.6",
     "@playwright/test": "^1.54.2",
+    "@typescript-eslint/parser": "^8.46.2",
+    "eslint": "^9.39.1",
+    "eslint-plugin-astro": "^1.7.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   },

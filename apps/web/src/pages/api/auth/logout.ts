@@ -4,7 +4,7 @@ import type { APIRoute } from 'astro';
  * Logout — clear auth cookie and redirect.
  * POST /api/auth/logout
  */
-export const POST: APIRoute = async ({ locals, redirect }) => {
+export const POST: APIRoute = async ({ locals }) => {
     locals.pb.authStore.clear();
 
     const response = new Response(null, {

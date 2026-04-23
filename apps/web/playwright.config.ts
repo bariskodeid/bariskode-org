@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const baseURL = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:4321';
+const setOriginHeader = process.env.E2E_SET_ORIGIN === '1';
 
 export default defineConfig({
     testDir: './tests/e2e',
@@ -12,6 +13,13 @@ export default defineConfig({
     use: {
         baseURL,
         trace: 'on-first-retry',
+        ...(setOriginHeader
+            ? {
+                  extraHTTPHeaders: {
+                      Origin: baseURL,
+                  },
+              }
+            : {}),
     },
     webServer: process.env.E2E_BASE_URL
         ? undefined

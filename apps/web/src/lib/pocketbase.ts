@@ -1,8 +1,15 @@
 import PocketBase from 'pocketbase';
 
-const PB_URL = import.meta.env.PUBLIC_POCKETBASE_URL ?? 'http://localhost:8090';
-const PB_ADMIN_EMAIL = import.meta.env.POCKETBASE_ADMIN_EMAIL;
-const PB_ADMIN_PASSWORD = import.meta.env.POCKETBASE_ADMIN_PASSWORD;
+const PB_URL = import.meta.env.PUBLIC_POCKETBASE_URL
+    ?? process.env.PUBLIC_POCKETBASE_URL
+    ?? 'http://localhost:8090';
+
+function getTrustedAdminCredentials() {
+    const email = import.meta.env.POCKETBASE_ADMIN_EMAIL ?? process.env.POCKETBASE_ADMIN_EMAIL;
+    const password = import.meta.env.POCKETBASE_ADMIN_PASSWORD ?? process.env.POCKETBASE_ADMIN_PASSWORD;
+
+    return { email, password };
+}
 
 export function getPocketBaseUrl() {
     return PB_URL;
@@ -19,12 +26,14 @@ export function createPocketBase() {
 }
 
 export async function createTrustedPocketBase() {
-    if (!PB_ADMIN_EMAIL || !PB_ADMIN_PASSWORD) {
+    const { email, password } = getTrustedAdminCredentials();
+
+    if (!email || !password) {
         throw new Error('Trusted PocketBase client is not configured');
     }
 
     const pb = createPocketBase();
-    await pb.admins.authWithPassword(PB_ADMIN_EMAIL, PB_ADMIN_PASSWORD);
+    await pb.admins.authWithPassword(email, password);
     return pb;
 }
 

@@ -109,7 +109,9 @@ export async function assertUserCanAccessLesson(
     });
 
     const orderedLessons = modules.flatMap((moduleRecord) =>
-        ((moduleRecord.status === 'published' || canAccessDraft) ? (moduleRecord.expand?.lessons_via_module ?? []) : [])
+        (((!moduleRecord.status || moduleRecord.status === 'published') || canAccessDraft)
+            ? (moduleRecord.expand?.lessons_via_module ?? [])
+            : [])
             .filter((courseLesson) => courseLesson.status === 'published' || canAccessDraft)
             .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
     );

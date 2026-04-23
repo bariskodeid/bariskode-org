@@ -316,11 +316,11 @@ Status di bawah ini memisahkan dengan tegas antara:
 |---|---|---|
 | Build gate | **Done** | `npm --prefix apps/web run build` sudah tervalidasi berhasil. |
 | Typecheck gate | **Done** | `npm --prefix apps/web run typecheck` tervalidasi lulus pada baseline saat ini. |
-| Lint gate | **Missing** | Belum ada script lint terverifikasi di `apps/web/package.json`. |
+| Lint gate | **Done** | `npm --prefix apps/web run lint` sudah tersedia dan tervalidasi lulus. |
 | Unit tests | **Partial** | Harness Vitest + helper-level unit tests sudah ada, tetapi coverage route/integration masih terbatas. |
 | Integration tests | **Missing** | Belum ada harness integration yang menembak route sensitif end-to-end. |
-| E2E critical journeys | **Partial** | Smoke tests untuk homepage, auth pages, dashboard auth redirect, dan invalid certificate state sudah ada; journey authenticated lesson/quiz/certificate penuh belum komprehensif. |
-| CI pipeline | **Missing** | Belum ada `.github/workflows/` atau pipeline otomatis lain di repo. |
+| E2E critical journeys | **Done** | Coverage guard + authenticated AQ-04 journey (`auth → learn → quiz → certificate`) sudah tervalidasi di environment docker lokal melalui `apps/web/tests/e2e/critical-journeys.spec.ts` dengan env test yang sesuai. |
+| CI pipeline | **Partial** | Workflow baseline tersedia di `.github/workflows/ci.yml` (lint, typecheck, unit test, build) untuk push/PR ke `main`; belum mencakup E2E/staging deploy. |
 | Staging deploy automation | **Missing** | Belum ada workflow deploy staging tervalidasi. |
 | Production deploy workflow | **Missing** | Belum ada approval/release/rollback workflow tervalidasi. |
 | Security hardening baseline | **Partial** | Sudah ada trusted admin allowlist di app layer, lock-down rules untuk `user_progress`/`certificates`/`xp_awards`/`quiz_submission_locks`, hardening `badges` dan `user_badges` ke trusted-backend write path, serta lock write path `ctf_solves`; CSRF, rate limiting, dan security headers masih belum lengkap. |
