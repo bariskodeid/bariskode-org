@@ -1,6 +1,8 @@
 import type { APIRoute } from 'astro';
 import { ensureCertificateForCourse } from '../../../lib/certificateService';
 import { createTrustedPocketBase } from '../../../lib/pocketbase';
+import { assertRequestBodyWithinLimit, assertWithinRateLimit, getClientAddress, RateLimitError } from '../../../lib/rateLimit';
+import { assertTrustedMutationRequest, RequestSecurityError } from '../../../lib/requestSecurity';
 import { isValidPocketBaseId } from '../../../lib/validation';
 
 export const POST: APIRoute = async ({ locals, request }) => {
@@ -12,7 +14,48 @@ export const POST: APIRoute = async ({ locals, request }) => {
     }
 
     try {
-        const { courseId } = await request.json();
+        assertTrustedMutationRequest(request);
+    } catch (error) {
+        if (error instanceof RequestSecurityError) {
+            return new Response(JSON.stringify({ error: error.message }), {
+                status: error.status,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        throw error;
+    }
+
+    try {
+        const clientAddress = getClientAddress(request);
+        await assertRequestBodyWithinLimit(request, 8 * 1024);
+        await assertWithinRateLimit(`certificate-generate:${locals.user.id}:${clientAddress}`, {
+            limit: 10,
+            windowMs: 60_000,
+        });
+    } catch (error) {
+        if (error instanceof RateLimitError) {
+            return new Response(JSON.stringify({ error: error.message }), {
+                status: error.status,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        throw error;
+    }
+
+    try {
+        let requestBody: { courseId?: unknown };
+        try {
+            requestBody = await request.json();
+        } catch {
+            return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        const courseId = typeof requestBody.courseId === 'string' ? requestBody.courseId : '';
         const userId = locals.user.id;
 
         if (!courseId) {
@@ -48,7 +91,14 @@ export const POST: APIRoute = async ({ locals, request }) => {
         return new Response(JSON.stringify({ certId: certResult.certId, alreadyExists: !certResult.created }), {
             headers: { 'Content-Type': 'application/json' },
         });
-    } catch {
+    } catch (error) {
+        if (error instanceof RateLimitError) {
+            return new Response(JSON.stringify({ error: error.message }), {
+                status: error.status,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
         return new Response(
             JSON.stringify({ error: 'Failed to generate certificate' }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }

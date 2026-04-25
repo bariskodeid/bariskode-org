@@ -1,0 +1,9 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - img [ref=e5]
+      - heading "Superuser login" [level=5] [ref=e6]
+    - generic [ref=e8]:
+      - generic [ref=e10]
+      - generic [ref=e13]
+      - button "Login" [ref=e24] [cursor=pointer]

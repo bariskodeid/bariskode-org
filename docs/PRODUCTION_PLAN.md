@@ -6,11 +6,11 @@
 | Field | Detail |
 |---|---|
 | **Document ID** | PLAN-PRD-READY-001 |
-| **Version** | 1.1.0 |
+| **Version** | 1.2.0 |
 | **Status** | Active Plan |
 | **Owner** | Engineering |
 | **Relates To** | `docs/IMPLEMENTATION.md`, `docs/TECH_SPEC.md`, `docs/SCHEMA.md`, `docs/PRD.md` |
-| **Last Updated** | 2026-04-23 |
+| **Last Updated** | 2026-04-25 |
 
 ---
 
@@ -21,10 +21,16 @@ Status update untuk eksekusi fase awal:
 - ✅ **AQ-01 (P0)** selesai — lint gate aktif (`apps/web/package.json`, `apps/web/eslint.config.mjs`)
 - ✅ **PI-03 (P0) baseline** selesai sebagian inti — CI workflow baseline tersedia (`.github/workflows/ci.yml`)
 - ✅ **AQ-04 (P0) authenticated critical journey** tervalidasi di environment docker lokal (auth → learn → quiz → certificate)
+- ✅ **SEC-01 (P0) baseline** selesai — same-origin guard diterapkan pada endpoint mutasi learner (`progress/complete`, `quiz/*/submit`, `certificates/generate`, `auth/logout`) lewat `apps/web/src/lib/requestSecurity.ts`
+- ✅ **SEC-02 (P0) baseline parsial** dimulai — rate limiting in-memory + payload size guard ditambahkan pada endpoint sensitif learner, dengan catatan hardening infra/distributed limiter masih lanjutan
+- ✅ **SEC-02 (P0) follow-up parsial** — adapter backend limiter ditambahkan (`memory` + opsi `upstash`), trust proxy gate dikontrol env, dan kontrak body-limit edge didokumentasikan
+- ✅ **DB-01 (P0) baseline parsial** — governance migration lifecycle ditetapkan via `apps/pocketbase/README.md` + CI gate `.github/workflows/pocketbase-migration-check.yml`
+- ✅ **DB-01 (P0) operational follow-up parsial** — approval ownership (`.github/CODEOWNERS`) + runbook backup/rollback coupling (`docs/DB01_MIGRATION_RUNBOOK.md`) ditambahkan
+- ✅ **PI-04 (P1) baseline parsial** — workflow staging CD + smoke disiapkan (`.github/workflows/staging-cd.yml`, `apps/web/tests/e2e/smoke-staging.spec.ts`) dan checklist wiring didokumentasikan di `docs/STAGING_SETUP.md`; menunggu secret/env staging + run bukti Actions
 - ✅ Verifikasi lokal lolos: `lint`, `typecheck`, `test:unit`, `build`
 - ✅ Verifikasi E2E AQ-04 lolos (`npm --prefix apps/web run test:e2e -- tests/e2e/critical-journeys.spec.ts`) dengan env test yang sesuai
 - ⏳ Sisa PI-03: perlu validasi run di GitHub Actions setelah PR/push berikutnya
-- ⏳ Pekerjaan berikutnya: SEC-01 (API security guard baseline), DB-01 (migration governance), PI-04 (staging CD + smoke)
+- ⏳ Pekerjaan berikutnya: SEC-02 lanjutan (aktivasi backend distributed limiter + enforcement body-limit di ingress/CDN, checklist `docs/SEC02_STAGING_ACTIVATION.md`), DB-01 lanjutan (validasi operasional runbook via run migration nyata + evidence backup metadata), PI-04 lanjutan (wiring deploy target nyata + smoke auth data)
 
 ---
 

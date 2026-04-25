@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   pocketbase:
-    image: ghcr.io/muchobien/pocketbase:latest
+    image: ghcr.io/muchobien/pocketbase:0.22.0
     container_name: bariskode-pocketbase
     restart: unless-stopped
     ports:
@@ -35,6 +35,12 @@ services:
       - POCKETBASE_ADMIN_EMAIL=${POCKETBASE_ADMIN_EMAIL:-}
       - POCKETBASE_ADMIN_PASSWORD=${POCKETBASE_ADMIN_PASSWORD:-}
       - ASTRO_CHECK_ORIGIN=${ASTRO_CHECK_ORIGIN:-true}
+      - TRUST_PROXY_HEADERS=${TRUST_PROXY_HEADERS:-false}
+      - RATE_LIMIT_BACKEND=${RATE_LIMIT_BACKEND:-memory}
+      - RATE_LIMIT_BACKEND_TIMEOUT_MS=${RATE_LIMIT_BACKEND_TIMEOUT_MS:-1500}
+      - RATE_LIMIT_BACKEND_MAX_RETRIES=${RATE_LIMIT_BACKEND_MAX_RETRIES:-1}
+      - UPSTASH_REDIS_REST_URL=${UPSTASH_REDIS_REST_URL:-}
+      - UPSTASH_REDIS_REST_TOKEN=${UPSTASH_REDIS_REST_TOKEN:-}
     depends_on:
       pocketbase:
         condition: service_healthy

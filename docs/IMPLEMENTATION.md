@@ -6,12 +6,12 @@
 | Field | Detail |
 |---|---|
 | **Document ID** | IMPL-001 |
-| **Version** | 2.3.0 |
+| **Version** | 2.4.0 |
 | **Status** | Synced with production plan & status markers |
 | **Author** | Apin + AI implementation review |
 | **Relates To** | PRD-001 · TECH-SPEC-001 · SCHEMA-001 · PLAN-PRD-READY-001 |
 | **Current Stack (repo actual)** | Astro 5 + React 19 + Tailwind 4 + PocketBase 0.22 |
-| **Last Updated** | 2026-04-22 |
+| **Last Updated** | 2026-04-25 |
 
 ---
 
@@ -40,11 +40,11 @@ Snapshot ini menjadi penanda cepat yang harus selalu di-update saat ada perubaha
 | Area | Status | Catatan ringkas |
 |---|---|---|
 | Frontend core flows | **Done** | Halaman utama MVP tersedia dan berjalan pada level repository. |
-| PocketBase backend operasional | **Partial** | Migrations/hooks ada; canonical runtime sudah ditetapkan ke `docker-compose.yml` root, namun reproducibility/automation production masih perlu dilanjutkan. |
+| PocketBase backend operasional | **Partial** | Migrations/hooks ada; governance lifecycle baseline + approval/rollback runbook sudah ditetapkan (`apps/pocketbase/README.md`, `.github/CODEOWNERS`, `docs/DB01_MIGRATION_RUNBOOK.md`), namun validasi operasional bukti backup/restore di environment target masih perlu dilanjutkan. |
 | Auth end-to-end provider nyata | **Partial** | Flow aplikasi tersedia, validasi provider nyata (SMTP/OAuth) perlu dibuktikan di environment target. |
 | Testing depth (integration + critical E2E) | **Partial** | Unit + smoke E2E ada; journey kritikal penuh belum komprehensif. |
-| CI/CD automation | **Missing** | Belum ada workflow CI/CD terverifikasi di repository. |
-| Security hardening production | **Partial** | Baseline sudah ada, rate limiting + hardening menyeluruh masih lanjut. |
+| CI/CD automation | **Partial** | Workflow CI baseline (`.github/workflows/ci.yml`) sudah ada untuk lint/typecheck/unit/build; baseline staging CD + smoke juga tersedia (`.github/workflows/staging-cd.yml`) dengan checklist setup di `docs/STAGING_SETUP.md`, namun masih menunggu wiring secret/env target dan bukti run di GitHub Actions. |
+| Security hardening production | **Partial** | Baseline CSRF/same-origin guard + rate limiting app-layer sudah aktif; adapter distributed limiter (`upstash`) tersedia, dan checklist aktivasi staging terdokumentasi di `docs/SEC02_STAGING_ACTIVATION.md`, namun aktivasi infra + body-limit ingress/CDN masih lanjut. |
 | Observability & runbook ops | **Missing** | Health/alerts/runbook formal belum lengkap. |
 | Documentation sync lintas dokumen | **Partial** | Sedang disinkronkan, tetap perlu dijaga pada setiap perubahan besar. |
 

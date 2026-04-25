@@ -1,0 +1,9 @@
+# Migration governance owners
+apps/pocketbase/pb_migrations/ @kucingsakti
+apps/pocketbase/pb_hooks/ @kucingsakti
+
+# Production readiness docs owners
+docs/PRODUCTION_PLAN.md @kucingsakti
+docs/IMPLEMENTATION.md @kucingsakti
+docs/STAGING_SETUP.md @kucingsakti
+docs/SEC02_STAGING_ACTIVATION.md @kucingsakti

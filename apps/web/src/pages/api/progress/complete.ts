@@ -2,6 +2,8 @@ import type { APIRoute } from 'astro';
 import { ensureCertificateForCourse, getCourseIdByLessonId } from '../../../lib/certificateService';
 import { assertLessonUnlocked, assertUserCanAccessLesson, getUserProgressRecord, LessonAccessError } from '../../../lib/lessonAccess';
 import { createTrustedPocketBase } from '../../../lib/pocketbase';
+import { assertRequestBodyWithinLimit, assertWithinRateLimit, getClientAddress, RateLimitError } from '../../../lib/rateLimit';
+import { assertTrustedMutationRequest, RequestSecurityError } from '../../../lib/requestSecurity';
 import { isValidPocketBaseId, normalizeInternalRedirect } from '../../../lib/validation';
 import { getXpSyncState } from '../../../lib/xpSync';
 
@@ -62,6 +64,37 @@ export const POST: APIRoute = async ({ locals, request }) => {
     }
 
     try {
+        assertTrustedMutationRequest(request);
+    } catch (error) {
+        if (error instanceof RequestSecurityError) {
+            return new Response(JSON.stringify({ error: error.message }), {
+                status: error.status,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        throw error;
+    }
+
+    try {
+        const clientAddress = getClientAddress(request);
+        await assertRequestBodyWithinLimit(request, 16 * 1024);
+        await assertWithinRateLimit(`progress-complete:${locals.user.id}:${clientAddress}`, {
+            limit: 40,
+            windowMs: 60_000,
+        });
+    } catch (error) {
+        if (error instanceof RateLimitError) {
+            return new Response(JSON.stringify({ error: error.message }), {
+                status: error.status,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        throw error;
+    }
+
+    try {
         // Support both JSON and FormData
         let lessonId: string;
         let redirectUrl: string | null = null;
@@ -72,8 +105,17 @@ export const POST: APIRoute = async ({ locals, request }) => {
             lessonId = formData.get('lessonId')?.toString() ?? '';
             redirectUrl = normalizeInternalRedirect(formData.get('redirect')?.toString() ?? null, `/learn/${lessonId}`);
         } else {
-            const body = await request.json();
-            lessonId = body.lessonId;
+            let body: { lessonId?: string };
+            try {
+                body = await request.json();
+            } catch {
+                return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+                    status: 400,
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            }
+
+            lessonId = typeof body.lessonId === 'string' ? body.lessonId : '';
         }
 
         if (!lessonId) {
@@ -135,7 +177,7 @@ export const POST: APIRoute = async ({ locals, request }) => {
             headers: { 'Content-Type': 'application/json' },
         });
     } catch (err: any) {
-        if (err instanceof LessonAccessError) {
+        if (err instanceof LessonAccessError || err instanceof RateLimitError) {
             return new Response(JSON.stringify({ error: err.message }), {
                 status: err.status,
                 headers: { 'Content-Type': 'application/json' },

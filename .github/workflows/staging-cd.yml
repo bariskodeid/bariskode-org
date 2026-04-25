@@ -1,0 +1,154 @@
+name: Staging CD
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: staging-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: staging
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
+
+      - name: Validate staging environment wiring
+        id: preflight
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+          STAGING_DEPLOY_WEBHOOK_URL: ${{ secrets.STAGING_DEPLOY_WEBHOOK_URL }}
+          STAGING_ENFORCE_SEC02: ${{ vars.STAGING_ENFORCE_SEC02 }}
+          STAGING_RATE_LIMIT_BACKEND: ${{ vars.STAGING_RATE_LIMIT_BACKEND }}
+          STAGING_TRUST_PROXY_HEADERS: ${{ vars.STAGING_TRUST_PROXY_HEADERS }}
+          STAGING_EDGE_BODY_LIMIT_ENABLED: ${{ vars.STAGING_EDGE_BODY_LIMIT_ENABLED }}
+          STAGING_UPSTASH_REDIS_REST_URL: ${{ secrets.STAGING_UPSTASH_REDIS_REST_URL }}
+          STAGING_UPSTASH_REDIS_REST_TOKEN: ${{ secrets.STAGING_UPSTASH_REDIS_REST_TOKEN }}
+        run: |
+          missing=0
+
+          if [ -z "$STAGING_BASE_URL" ]; then
+            echo "❌ Missing GitHub Environment variable: STAGING_BASE_URL" >&2
+            missing=1
+          fi
+
+          if [ -z "$STAGING_DEPLOY_WEBHOOK_URL" ]; then
+            if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+              echo "❌ Missing GitHub Environment secret: STAGING_DEPLOY_WEBHOOK_URL (required for push gate)" >&2
+              missing=1
+            else
+              echo "⚠️ Missing GitHub Environment secret: STAGING_DEPLOY_WEBHOOK_URL" >&2
+              echo "Deploy trigger step will be skipped; smoke checks will run against existing staging target."
+            fi
+            echo "deploy_webhook_ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy_webhook_ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$STAGING_ENFORCE_SEC02" != "1" ]; then
+            echo "❌ STAGING_ENFORCE_SEC02 must be '1' for push-based staging gate." >&2
+            missing=1
+          fi
+
+          if [ "$STAGING_ENFORCE_SEC02" = "1" ]; then
+            echo "SEC-02 enforcement mode enabled for staging preflight."
+
+            if [ "$STAGING_RATE_LIMIT_BACKEND" != "upstash" ]; then
+              echo "❌ STAGING_RATE_LIMIT_BACKEND must be 'upstash' when STAGING_ENFORCE_SEC02=1" >&2
+              missing=1
+            fi
+
+            if [ "$STAGING_TRUST_PROXY_HEADERS" != "true" ]; then
+              echo "❌ STAGING_TRUST_PROXY_HEADERS must be 'true' when STAGING_ENFORCE_SEC02=1" >&2
+              missing=1
+            fi
+
+            if [ -z "$STAGING_UPSTASH_REDIS_REST_URL" ] || [ -z "$STAGING_UPSTASH_REDIS_REST_TOKEN" ]; then
+              echo "❌ Missing STAGING_UPSTASH_REDIS_REST_URL / STAGING_UPSTASH_REDIS_REST_TOKEN secrets" >&2
+              missing=1
+            fi
+
+            case "$STAGING_UPSTASH_REDIS_REST_URL" in
+              https://*) ;;
+              *)
+                echo "❌ STAGING_UPSTASH_REDIS_REST_URL must use https://" >&2
+                missing=1
+                ;;
+            esac
+
+            if [ "$STAGING_EDGE_BODY_LIMIT_ENABLED" != "1" ]; then
+              echo "❌ STAGING_EDGE_BODY_LIMIT_ENABLED must be '1' when STAGING_ENFORCE_SEC02=1" >&2
+              missing=1
+            fi
+          else
+            echo "⚠️ STAGING_ENFORCE_SEC02 != 1, SEC-02 activation checks are informational only."
+          fi
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Validate staging secret presence
+        id: staging-secrets
+        if: steps.preflight.outputs.deploy_webhook_ready == 'true'
+        run: |
+          if [ -n "${{ secrets.STAGING_DEPLOY_WEBHOOK_URL }}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "STAGING_DEPLOY_WEBHOOK_URL missing - deploy step will be skipped."
+          fi
+
+      - name: Trigger staging deployment
+        if: steps.staging-secrets.outputs.ready == 'true'
+        run: |
+          curl --fail --show-error --silent \
+            --retry 3 --retry-delay 2 --max-time 30 \
+            -X POST "${{ secrets.STAGING_DEPLOY_WEBHOOK_URL }}"
+
+      - name: Setup Node.js for smoke tests
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install web dependencies
+        run: npm --prefix apps/web ci
+
+      - name: Install Playwright browser
+        run: npm --prefix apps/web exec playwright install --with-deps chromium
+
+      - name: Wait for staging readiness
+        env:
+          E2E_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+        run: |
+          for i in {1..18}; do
+            if curl --fail --show-error --silent --max-time 10 "$E2E_BASE_URL" >/dev/null; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Staging did not become ready in expected time." >&2
+          exit 1
+
+      - name: Run staging smoke checks
+        env:
+          E2E_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+          E2E_SET_ORIGIN: '1'
+        run: |
+          if [ -z "$E2E_BASE_URL" ]; then
+            echo "STAGING_BASE_URL variable is missing." >&2
+            exit 1
+          fi
+          npm --prefix apps/web run test:e2e -- --grep "@smoke-staging"

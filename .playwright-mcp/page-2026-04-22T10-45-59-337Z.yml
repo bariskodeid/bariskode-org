@@ -1,0 +1,23 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - img [ref=e5]
+      - heading "Superuser login" [level=5] [ref=e6]:
+        - generic [ref=e7]: Superuser login
+    - generic [ref=e8]:
+      - generic [ref=e10]:
+        - generic [ref=e11]: Email *
+        - textbox "Email *" [active] [ref=e12]
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - generic [ref=e15]:
+            - generic [ref=e16]: Password *
+            - textbox "Password *" [ref=e17]
+          - button "Show password" [ref=e19] [cursor=pointer]:
+            - generic [ref=e20]: 
+        - link "Forgotten password" [ref=e21] [cursor=pointer]:
+          - /url: "#/request-password-reset"
+          - generic [ref=e22]: Forgotten password
+      - button "Login" [ref=e24] [cursor=pointer]:
+        - generic [ref=e25]: Login
+        - generic [ref=e26]: 

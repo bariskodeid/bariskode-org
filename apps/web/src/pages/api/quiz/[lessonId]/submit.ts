@@ -4,6 +4,8 @@ import { assertLessonUnlocked, assertUserCanAccessLesson, getUserProgressRecord,
 import { createTrustedPocketBase } from '../../../../lib/pocketbase';
 import { getQuizReviewAvailability } from '../../../../lib/quizReview';
 import { acquireQuizSubmissionLock, QuizSubmissionLockError, releaseQuizSubmissionLock } from '../../../../lib/quizSubmissionLock';
+import { assertRequestBodyWithinLimit, assertWithinRateLimit, getClientAddress, RateLimitError } from '../../../../lib/rateLimit';
+import { assertTrustedMutationRequest, RequestSecurityError } from '../../../../lib/requestSecurity';
 import { isValidPocketBaseId } from '../../../../lib/validation';
 import { getXpSyncState } from '../../../../lib/xpSync';
 
@@ -13,6 +15,37 @@ export const POST: APIRoute = async ({ params, locals, request }) => {
             status: 401,
             headers: { 'Content-Type': 'application/json' },
         });
+    }
+
+    try {
+        assertTrustedMutationRequest(request);
+    } catch (error) {
+        if (error instanceof RequestSecurityError) {
+            return new Response(JSON.stringify({ error: error.message }), {
+                status: error.status,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        throw error;
+    }
+
+    try {
+        const clientAddress = getClientAddress(request);
+        await assertRequestBodyWithinLimit(request, 32 * 1024);
+        await assertWithinRateLimit(`quiz-submit:${locals.user.id}:${clientAddress}`, {
+            limit: 20,
+            windowMs: 60_000,
+        });
+    } catch (error) {
+        if (error instanceof RateLimitError) {
+            return new Response(JSON.stringify({ error: error.message }), {
+                status: error.status,
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        throw error;
     }
 
     let lockId: string | null = null;
@@ -171,7 +204,7 @@ export const POST: APIRoute = async ({ params, locals, request }) => {
             headers: { 'Content-Type': 'application/json' },
         });
     } catch (err: any) {
-        if (err instanceof LessonAccessError || err instanceof QuizSubmissionLockError) {
+        if (err instanceof LessonAccessError || err instanceof QuizSubmissionLockError || err instanceof RateLimitError) {
             return new Response(JSON.stringify({ error: err.message }), {
                 status: err.status,
                 headers: { 'Content-Type': 'application/json' },

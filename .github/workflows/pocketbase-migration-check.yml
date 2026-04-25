@@ -1,0 +1,44 @@
+name: PocketBase Migration Check
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths:
+      - apps/pocketbase/pb_migrations/**
+      - scripts/check-pb-migrations.mjs
+      - .github/workflows/pocketbase-migration-check.yml
+  push:
+    branches: [main]
+    paths:
+      - apps/pocketbase/pb_migrations/**
+      - scripts/check-pb-migrations.mjs
+      - .github/workflows/pocketbase-migration-check.yml
+
+jobs:
+  migration-governance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # v4.1.0
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch for immutability diff
+        if: github.event_name == 'pull_request'
+        run: git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version: 22
+
+      - name: Validate migration governance
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: node scripts/check-pb-migrations.mjs

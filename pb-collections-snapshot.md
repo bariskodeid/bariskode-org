@@ -1,0 +1,100 @@
+- main [ref=e2]:
+  - generic [ref=e27]:
+    - link "App logo" [ref=e28] [cursor=pointer]:
+      - /url: "#/"
+      - img "App logo" [ref=e29]
+    - navigation [ref=e30]:
+      - link "Collections" [ref=e31] [cursor=pointer]:
+        - /url: "#/collections"
+        - generic [ref=e32]: 
+        - generic [ref=e33]: Collections
+      - link "Logs" [ref=e34] [cursor=pointer]:
+        - /url: "#/logs"
+        - generic [ref=e35]: 
+        - generic [ref=e36]: Logs
+      - link "Settings" [ref=e37] [cursor=pointer]:
+        - /url: "#/settings"
+        - generic [ref=e38]: 
+        - generic [ref=e39]: Settings
+    - button "Color scheme" [ref=e40] [cursor=pointer]:
+      - generic [ref=e41]: 
+    - text:   
+    - button "admin@bariskode.org" [ref=e42] [cursor=pointer]:
+      - generic [ref=e43]: admin@bariskode.org
+      - generic [ref=e44]: 
+    - text:  
+  - generic [ref=e45]:
+    - complementary [ref=e46]:
+      - generic [ref=e49]:
+        - textbox "Search collections..." [ref=e51]
+        - generic [ref=e52]:
+          - text: 
+          - button [ref=e53] [cursor=pointer]:
+            - generic [ref=e54]: 
+      - navigation [ref=e55]:
+        - group [ref=e56]:
+          - generic "Collections" [ref=e57]
+          - button "users " [ref=e58] [cursor=pointer]:
+            - generic [ref=e59]: 
+            - generic [ref=e60]: users
+            - button "" [ref=e61]:
+              - generic [ref=e62]: 
+        - group [ref=e63]:
+          - generic " System" [ref=e64]
+          - text:          
+      - button "New collection" [ref=e66] [cursor=pointer]:
+        - generic [ref=e67]: 
+        - generic [ref=e68]: New collection
+    - generic [ref=e69]:
+      - generic [ref=e70]:
+        - navigation [ref=e71]:
+          - generic [ref=e72]: Collections /
+          - generic "users" [ref=e73]
+        - generic [ref=e74]:
+          - button "Collection settings" [ref=e75] [cursor=pointer]:
+            - generic [ref=e76]: 
+          - button "Refresh" [ref=e77] [cursor=pointer]:
+            - generic [ref=e78]: 
+        - generic [ref=e79]:
+          - button "API preview" [ref=e80] [cursor=pointer]:
+            - generic [ref=e81]: 
+            - generic [ref=e82]: API preview
+          - button "New Record" [ref=e83] [cursor=pointer]:
+            - generic [ref=e84]: 
+            - generic [ref=e85]: New Record
+      - text: 
+      - generic [ref=e87]:
+        - button "Search history" [ref=e89] [cursor=pointer]:
+          - generic [ref=e90]: 
+          - generic [ref=e91]: 
+        - textbox [ref=e95]: Search term or filter...
+      - generic [ref=e96]:
+        - table [ref=e97]:
+          - rowgroup [ref=e98]:
+            - row " id email emailVisibility verified name avatar created updated" [ref=e99]:
+              - columnheader "" [ref=e100]
+              - columnheader "id" [ref=e104] [cursor=pointer]
+              - text: 
+              - columnheader "email" [ref=e108] [cursor=pointer]
+              - columnheader "emailVisibility" [ref=e112] [cursor=pointer]
+              - columnheader "verified" [ref=e116] [cursor=pointer]
+              - columnheader "name" [ref=e120] [cursor=pointer]
+              - columnheader "avatar" [ref=e124] [cursor=pointer]
+              - columnheader "created" [ref=e128] [cursor=pointer]
+              - columnheader "updated" [ref=e132] [cursor=pointer]
+              - columnheader [ref=e136]
+          - rowgroup [ref=e139]:
+            - row "No records found.  New record" [ref=e140]:
+              - cell "No records found.  New record" [ref=e141]
+        - generic:  
+      - generic [ref=e147]:
+        - generic [ref=e148]: "Total: 0"
+        - generic [ref=e149]:
+          - link "Docs" [ref=e150] [cursor=pointer]:
+            - /url: https://pocketbase.io/docs
+            - generic [ref=e151]: 
+            - generic [ref=e152]: Docs
+          - link "PocketBase v0.37.2" [ref=e153] [cursor=pointer]:
+            - /url: https://github.com/pocketbase/pocketbase/releases
+            - generic [ref=e154]: 
+            - generic [ref=e155]: PocketBase v0.37.2
